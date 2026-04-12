@@ -15,10 +15,11 @@ Globals:
         APP_NAME: go-lambda-template
         APP_ENV: dev
         APP_VERSION: sam-local
-        AWS_REGION: us-east-1
         DEBUG: "true"
-        DYNAMODB_TABLE_NAME: !Ref RequestsTable
-        GREETING_PARAMETER_NAME: !Ref GreetingParameter
+        DYNAMODB_TABLE_NAME:
+          Ref: RequestsTable
+        GREETING_PARAMETER_NAME:
+          Ref: GreetingParameter
         GREETING_PREFIX_OVERRIDE: ""
         GREETING_SOURCE_LABEL: sam-local
 
@@ -62,29 +63,36 @@ Resources:
                 - dynamodb:DeleteItem
                 - dynamodb:Query
                 - dynamodb:Scan
-              Resource: !GetAtt RequestsTable.Arn
+              Resource:
+                Fn::GetAtt:
+                  - RequestsTable
+                  - Arn
             - Sid: ReadGreetingParameter
               Effect: Allow
               Action:
                 - ssm:GetParameter
                 - ssm:GetParameters
                 - ssm:GetParametersByPath
-              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/go-lambda-template/dev/greeting-prefix
+              Resource:
+                Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/go-lambda-template/dev/greeting-prefix
       Events:
         HelloRoot:
           Type: HttpApi
           Properties:
-            ApiId: !Ref HttpApi
+            ApiId:
+              Ref: HttpApi
             Method: GET
             Path: /hello
         HelloByName:
           Type: HttpApi
           Properties:
-            ApiId: !Ref HttpApi
+            ApiId:
+              Ref: HttpApi
             Method: GET
             Path: /hello/{name}
 
 Outputs:
   LocalApiUrl:
     Description: Local or deployed API endpoint
-    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+    Value:
+      Fn::Sub: https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com

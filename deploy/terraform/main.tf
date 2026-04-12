@@ -137,7 +137,6 @@ resource "aws_lambda_function" "api_image" {
       APP_NAME                 = var.project_name
       APP_ENV                  = var.environment
       APP_VERSION              = "terraform"
-      AWS_REGION               = var.aws_region
       DEBUG                    = var.debug_mode ? "true" : "false"
       DYNAMODB_TABLE_NAME      = aws_dynamodb_table.requests.name
       GREETING_PARAMETER_NAME  = aws_ssm_parameter.greeting_prefix.name
@@ -172,7 +171,6 @@ resource "aws_lambda_function" "api_zip" {
       APP_NAME                 = var.project_name
       APP_ENV                  = var.environment
       APP_VERSION              = "terraform"
-      AWS_REGION               = var.aws_region
       DEBUG                    = var.debug_mode ? "true" : "false"
       DYNAMODB_TABLE_NAME      = aws_dynamodb_table.requests.name
       GREETING_PARAMETER_NAME  = aws_ssm_parameter.greeting_prefix.name

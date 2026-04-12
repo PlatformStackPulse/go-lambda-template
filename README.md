@@ -173,7 +173,7 @@ The template uses these Lambda environment variables:
 | `APP_NAME` | Logical application name | `go-lambda-template` |
 | `APP_ENV` | Environment name | `dev` |
 | `APP_VERSION` | Build or release version | `dev` |
-| `AWS_REGION` | AWS region | `us-east-1` |
+| `AWS_REGION` | AWS region injected by Lambda runtime (reserved) | runtime-provided |
 | `DEBUG` | Debug logging flag | `false` |
 | `DYNAMODB_TABLE_NAME` | DynamoDB table used by the sample adapter | `${APP_NAME}-${APP_ENV}-requests` |
 | `GREETING_PARAMETER_NAME` | SSM parameter that stores the greeting prefix | `/${APP_NAME}/${APP_ENV}/greeting-prefix` |
