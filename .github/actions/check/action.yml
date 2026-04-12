@@ -1,0 +1,15 @@
+name: check
+description: GitHub composite action to run checks
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Run checks
+      shell: bash
+      run: |
+        make lint test security

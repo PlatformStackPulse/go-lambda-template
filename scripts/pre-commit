@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# Pre-commit hook to ensure conventional commits
+# Copy this file to .git/hooks/pre-commit and make it executable
+
+set -e
+
+# Get the commit message
+if [ -z "$1" ]; then
+    COMMIT_MSG=$(git diff --cached --diff-filter=M --name-only | head -1)
+fi
+
+# Conventional commit pattern
+# feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert
+PATTERN='^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)(\(.+\))?!?:\s.{1,}$'
+
+if ! [[ $COMMIT_MSG =~ $PATTERN ]]; then
+    echo "❌ Commit message does not follow Conventional Commits format."
+    echo ""
+    echo "Expected format:"
+    echo "  feat: add new feature"
+    echo "  fix: resolve bug"
+    echo "  docs: update documentation"
+    echo "  chore: update dependencies"
+    echo ""
+    echo "Your message: $COMMIT_MSG"
+    exit 1
+fi
+
+echo "✅ Commit message follows Conventional Commits format"

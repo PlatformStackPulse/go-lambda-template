@@ -1,0 +1,14 @@
+[core]
+	autocrlf = input
+
+[diff]
+	algorithm = histogram
+
+[fetch]
+	prune = true
+
+[pull]
+	ff = only
+
+[rebase]
+	autostash = true

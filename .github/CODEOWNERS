@@ -1,0 +1,21 @@
+# Template for .github/CODEOWNERS
+# This file defines who is responsible for code in different areas
+
+# Default owners
+* @PlatformStackPulse
+
+# Specific paths (examples)
+# /cmd/           @team/platform-engineering
+# /internal/      @team/core-developers
+# /deploy/        @team/devops
+# /.github/workflows/ @team/ci-cd
+
+# Documentation
+# /docs/          @team/documentation
+# README.md       @PlatformStackPulse
+
+# Configuration
+# /.github/       @PlatformStackPulse
+# Makefile        @PlatformStackPulse
+# Dockerfile      @team/devops
+# .golangci.yml   @team/code-quality

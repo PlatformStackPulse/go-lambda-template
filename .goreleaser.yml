@@ -1,0 +1,56 @@
+version: 2
+
+project_name: go-template
+
+release:
+  draft: false
+  prerelease: auto
+  name_template: 'v{{.Version}}'
+
+builds:
+  - id: go-template
+    main: ./cmd/app/main.go
+    binary: go-template
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -X github.com/PlatformStackPulse/go-template/pkg/version.Version={{.Version}}
+      - -X github.com/PlatformStackPulse/go-template/pkg/version.Commit={{.Commit}}
+      - -X github.com/PlatformStackPulse/go-template/pkg/version.BuildTime={{.Date}}
+      - -X github.com/PlatformStackPulse/go-template/pkg/version.GoVersion={{.Env.GOVERSION}}
+
+archives:
+  - formats: ["tar.gz"]
+    wrap_in_directory: true
+    format_overrides:
+      - goos: windows
+        formats: ["zip"]
+
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  abbrev: 0
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+
+brews:
+  - name: go-template
+    repository:
+      owner: PlatformStackPulse
+      name: homebrew-go-template
+    homepage: 'https://github.com/PlatformStackPulse/go-template'
+    description: 'Production-ready Go template'
+    license: 'MIT'

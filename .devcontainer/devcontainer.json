@@ -1,0 +1,28 @@
+run-type: docker-in-docker
+image: mcr.microsoft.com/devcontainers/go:1.22
+features:
+  ghcr.io/devcontainers/features/github-cli:1.0
+
+customizations:
+  vscode:
+    extensions:
+      - golang.go
+      - github.copilot
+      - github.copilot-chat
+      - ms-vscode.makefile-tools
+      - streetsidesoftware.code-spell-checker
+      - zainabdnazari.launchpad
+      - eamodio.gitlens
+
+    settings:
+      "[go]":
+        editor.formatOnSave: true
+        editor.codeActionsOnSave:
+          source.fixAll.golangci-lint: true
+      go.lintTool: golangci-lint
+      go.lintOnSave: package
+      go.useLanguageServer: true
+
+postCreateCommand: make dev-setup
+
+remoteUser: vscode

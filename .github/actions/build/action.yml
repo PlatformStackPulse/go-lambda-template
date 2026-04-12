@@ -1,0 +1,14 @@
+name: build
+description: GitHub composite action to build binary
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Build
+      shell: bash
+      run: make build

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-template
+  labels:
+    app: go-template
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: go-template
+  template:
+    metadata:
+      labels:
+        app: go-template
+    spec:
+      containers:
+        - name: go-template
+          image: ghcr.io/platformstackpulse/go-template:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DEBUG
+              value: "false"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
