@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	apperrors "github.com/PlatformStackPulse/go-template/internal/errors"
+	apperrors "github.com/PlatformStackPulse/go-lambda-template/internal/errors"
 )
 
 func TestNew(t *testing.T) {

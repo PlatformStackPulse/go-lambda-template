@@ -140,12 +140,18 @@ jobs:
         with:
           go-version: "1.23"
 
+      - name: Set up AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
       - name: Build
-        run: make build
+        run: make package
+
+      - name: Validate SAM template
+        run: sam validate --template-file deploy/sam/template.yaml
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: go-template-binary
-          path: bin/go-template
+          name: lambda-artifacts
+          path: dist/
           retention-days: 7

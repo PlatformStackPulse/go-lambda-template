@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/PlatformStackPulse/go-template/pkg/version"
+	"github.com/PlatformStackPulse/go-lambda-template/pkg/version"
 )
 
 func TestGetReturnsVersionInfo(t *testing.T) {

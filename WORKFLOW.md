@@ -1,205 +1,90 @@
-# Repository Branch Protection & Workflow Guide
+# Workflow Guide
 
-## GitHub Actions Status Checks
+This repository uses one local development path and one infrastructure path.
 
-Configure the following status checks on your main branch:
+## Tool Responsibilities
 
-### Required Status Checks
+- AWS SAM: local build, local invoke, and local API simulation
+- Terraform: default infrastructure provisioning and deployment path
+- Docker and `scripts/push-ecr.sh`: default Lambda image packaging and ECR push path
+- GitHub Actions: lint, test, security scanning, packaging, and release publishing
 
-1. **CI Pipeline Checks:**
-   - `CI Pipeline / Lint & Format Check`
-   - `CI Pipeline / Test (1.22)`
-   - `CI Pipeline / Test (1.23)`
-   - `CI Pipeline / Security Scans`
-   - `CI Pipeline / Commit Lint`
-   - `CI Pipeline / Build`
+## Daily Development Flow
 
-2. **Code scanning check:**
-   - `CodeQL Analysis / Analyze`
+1. make your code changes in `internal/handler`, `internal/usecase`, `internal/domain`, or the AWS adapters
+2. run `make test`
+3. run `make sam-start-api` or `make sam-invoke`
+4. deploy through `make terraform-apply` when ready
 
-## Branch Protection Rules
+## Local Development Commands
 
-### For `main` branch:
-
-```yaml
-# Require pull request reviews before merging
-Require reviews: 1
-
-# Dismiss stale pull request approvals
-Dismiss stale PR approvals: true
-
-# Require status checks to pass before merging
-Require status checks:
-  - CI Pipeline / Lint & Format Check
-  - CI Pipeline / Test (1.22)
-  - CI Pipeline / Test (1.23)
-  - CI Pipeline / Security Scans
-  - CI Pipeline / Commit Lint
-  - CI Pipeline / Build
-  - CodeQL Analysis / Analyze
-
-# Require branches to be up to date before merging
-Require branches up to date: true
-
-# Include administrators
-Include administrators: true
-
-# Allow force pushes
-Allow force pushes: false
-
-# Allow deletions
-Allow deletions: false
-
-# Lockdown
-Lockdown: false (or true for restrictive mode)
+```bash
+make test
+make package
+make sam-build
+make sam-invoke
+make sam-start-api
 ```
 
-### For other branches:
+## Deployment Commands
 
-- Allow direct commits to `develop` for minor updates
-- Require PRs for feature branches
+```bash
+make terraform-plan
+make terraform-apply
+make terraform-plan-zip
+make terraform-apply-zip
+```
 
-## Setup Instructions
+Default deployment path:
 
-1. **Go to Repository Settings** → **Branches**
-2. **Click "Add rule"**
-3. **Configure for `main` branch:**
-   - Apply to administrators: ✅
-   - Require pull request reviews: 1 review ✅
-   - Dismiss stale reviews: ✅
-  - Require status checks: all checks listed above ✅
-   - Require branches up to date: ✅
+- `make terraform-apply` creates the ECR repository if needed, builds the Docker image, pushes it to ECR, and applies the Terraform stack
 
-## Quick Apply via API (Script)
+Optional deployment path:
 
-You can apply the `main` branch protection policy in one command using:
+- `make package && make terraform-apply-zip` uploads the zip artifact through S3-backed Terraform resources
 
-1. Export token with admin access to this repo:
+## Branch Protection
+
+Recommended required checks on `main`:
+
+1. `CI Pipeline / Lint & Format Check`
+2. `CI Pipeline / Test (1.22)`
+3. `CI Pipeline / Test (1.23)`
+4. `CI Pipeline / Security Scans`
+5. `CI Pipeline / Commit Lint`
+6. `CI Pipeline / Build`
+7. `CodeQL Analysis / Analyze`
+
+Apply via script:
 
 ```bash
 export GITHUB_TOKEN=ghp_xxx
-```
-
-2. Run script:
-
-```bash
-chmod +x scripts/apply-branch-protection.sh
 scripts/apply-branch-protection.sh
 ```
 
-Optional overrides:
+Optional override:
 
 ```bash
-GITHUB_OWNER=PlatformStackPulse GITHUB_REPO=go-template BRANCH=main scripts/apply-branch-protection.sh
+GITHUB_OWNER=PlatformStackPulse GITHUB_REPO=go-lambda-template BRANCH=main scripts/apply-branch-protection.sh
 ```
 
-## Quick Apply Checklist (GitHub UI)
+## CI and Release Behavior
 
-Use this exact list when selecting required status checks for branch protection on `main`:
+- CI runs lint, tests, security checks, builds the Lambda artifact, and validates the SAM template
+- the repository is designed around Docker plus ECR deployment for Terraform-managed environments
+- zip packaging remains available as an optional deployment path
 
-1. CI Pipeline / Lint & Format Check
-2. CI Pipeline / Test (1.22)
-3. CI Pipeline / Test (1.23)
-4. CI Pipeline / Security Scans
-5. CI Pipeline / Commit Lint
-6. CI Pipeline / Build
-7. CodeQL Analysis / Analyze
+## Release Flow
 
-Recommended additional protection toggles:
+1. merge changes to `main`
+2. create a version tag such as `v1.2.3`
+3. push the tag
+4. let the release workflow publish the Lambda artifacts
 
-1. Require a pull request before merging
-2. Require approvals: 1
-3. Dismiss stale pull request approvals when new commits are pushed
-4. Require conversation resolution before merging
-5. Require branches to be up to date before merging
-6. Include administrators
-7. Block force pushes
-8. Block branch deletion
+## Operational Defaults
 
-## Automatic Remediation Workflows
-
-### 1. Auto-Update Dependencies
-- **Trigger:** Weekly
-- **Action:** Create PR with dependency updates
-- **Config:** `.github/workflows/dependencies.yml`
-
-### 2. Auto-Fix Formatting
-- **Trigger:** PR submission
-- **Action:** Suggest formatting fixes (not auto-commit)
-- **Config:** CI Pipeline
-
-### 3. Version Bumping
-- **Trigger:** Manual (workflow_dispatch)
-- **Action:** Bump version and create release
-- **Config:** `.github/workflows/version-bump.yml`
-
-## Recommended Workflow
-
-```
-main (protected)
-└── develop (semi-protected)
-    ├── feature/* (unprotected)
-    ├── bugfix/* (unprotected)
-    └── hotfix/* (unprotected)
-
-PR Flow:
-1. feature/* → PR → develop
-2. develop → PR → main (requires approval + checks)
-3. hotfix/* → PR → main (direct to main for urgent fixes)
-```
-
-## Additional Security Configurations
-
-### Dependabot Settings
-
-Enable in `Settings` → `Code security` → `Dependabot`:
-
-- ✅ Dependabot alerts
-- ✅ Dependabot security updates
-- ✅ Dependabot version updates
-
-Create `.github/dependabot.yml`:
-
-```yaml
-version: 2
-updates:
-  - package-ecosystem: "gomod"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-```
-
-### Secret Scanning
-
-Enable in `Settings` → `Security`:
-
-- ✅ Push protection
-- ✅ Secret scanning for partner patterns
-
-### Code Scanning
-
-- ✅ CodeQL enabled (see `.github/workflows/codeql.yml`)
-- ✅ Alerts reviewed regularly
-
-## Deployment Considerations
-
-### Pre-Deployment Checklist
-
-- [ ] All tests pass
-- [ ] Security scans clear
-- [ ] Coverage maintained (≥70%)
-- [ ] Commits follow Conventional Commits
-- [ ] PR has approval
-- [ ] Branch is up to date with main
-
-### Release Process
-
-1. Create PR to main
-2. Await reviews and checks
-3. Merge to main
-4. Tag with version (`git tag v1.2.3`)
-5. Push tag (`git push origin v1.2.3`)
-6. Release workflow auto-triggers
-7. Artifacts published to GitHub Releases
-
-For more information, see [CONTRIBUTING.md](CONTRIBUTING.md) and [README.md](README.md).
+- Lambda logs are JSON structured through `slog`
+- CloudWatch log retention is managed in Terraform
+- API Gateway access logging is enabled in Terraform
+- the sample Lambda role includes scoped DynamoDB and SSM access
+- the sample Lambda runtime reads optional overrides from environment variables through a dedicated adapter

@@ -1,36 +1,24 @@
-# Multi-stage build
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23 AS builder
 
-WORKDIR /app
+ARG TARGETARCH=arm64
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
+ARG GO_VERSION=unknown
 
-# Install build tools
-RUN apk add --no-cache git make
+WORKDIR /src
 
-# Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source
 COPY . .
 
-# Build
-RUN make build VERSION=$VERSION
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
+    go build \
+    -ldflags "-X github.com/PlatformStackPulse/go-lambda-template/pkg/version.Version=${VERSION} -X github.com/PlatformStackPulse/go-lambda-template/pkg/version.Commit=${COMMIT} -X github.com/PlatformStackPulse/go-lambda-template/pkg/version.BuildTime=${BUILD_TIME} -X github.com/PlatformStackPulse/go-lambda-template/pkg/version.GoVersion=${GO_VERSION}" \
+    -o /out/bootstrap \
+    ./cmd/lambda
 
-# Runtime stage
-FROM alpine:latest
+FROM public.ecr.aws/lambda/provided:al2023
 
-RUN apk --no-cache add ca-certificates
-
-WORKDIR /app
-
-# Copy binary from builder
-COPY --from=builder /app/bin/go-template .
-
-# User
-RUN addgroup -g 1000 app && \
-    adduser -D -u 1000 -G app app
-
-USER app
-
-ENTRYPOINT ["./go-template"]
-CMD ["--help"]
+COPY --from=builder /out/bootstrap ${LAMBDA_TASK_ROOT}/bootstrap

@@ -7,7 +7,7 @@
 #   - GITHUB_TOKEN env var with repo admin permissions
 # Optional:
 #   - GITHUB_OWNER (default: PlatformStackPulse)
-#   - GITHUB_REPO (default: go-template)
+#   - GITHUB_REPO (default: go-lambda-template)
 #   - BRANCH (default: main)
 
 set -euo pipefail
@@ -29,7 +29,7 @@ if [[ -z "${GITHUB_TOKEN:-}" ]]; then
 fi
 
 GITHUB_OWNER="${GITHUB_OWNER:-PlatformStackPulse}"
-GITHUB_REPO="${GITHUB_REPO:-go-template}"
+GITHUB_REPO="${GITHUB_REPO:-go-lambda-template}"
 BRANCH="${BRANCH:-main}"
 
 API_URL="https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/branches/${BRANCH}/protection"
@@ -41,8 +41,8 @@ PAYLOAD='{
     "strict": true,
     "contexts": [
       "CI Pipeline / Lint & Format Check",
-      "CI Pipeline / Test (1.21)",
       "CI Pipeline / Test (1.22)",
+      "CI Pipeline / Test (1.23)",
       "CI Pipeline / Security Scans",
       "CI Pipeline / Commit Lint",
       "CI Pipeline / Build",

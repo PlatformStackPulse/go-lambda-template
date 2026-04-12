@@ -5,30 +5,28 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/PlatformStackPulse/go-template/internal/domain"
+	"github.com/PlatformStackPulse/go-lambda-template/internal/domain"
 )
 
-func TestGreeterGreet(t *testing.T) {
+func TestNormalizeName(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
 		expected string
 	}{
-		{name: "greet with name", input: "Alice", expected: "Hello, Alice!"},
-		{name: "greet without name", input: "", expected: "Hello, World!"},
-		{name: "greet with special characters", input: "Bob@123", expected: "Hello, Bob@123!"},
+		{name: "trim name", input: " Alice ", expected: "Alice"},
+		{name: "fallback name", input: "", expected: "World"},
+		{name: "keep special characters", input: "Bob@123", expected: "Bob@123"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			greeter := domain.NewGreeter(tc.input)
-			assert.Equal(t, tc.expected, greeter.Greet())
+			assert.Equal(t, tc.expected, domain.NormalizeName(tc.input))
 		})
 	}
 }
 
-func TestNewGreeter(t *testing.T) {
-	greeter := domain.NewGreeter("TestName")
-	assert.NotNil(t, greeter)
-	assert.Equal(t, "TestName", greeter.Name)
+func TestBuildGreeting(t *testing.T) {
+	assert.Equal(t, "Hello, Alice!", domain.BuildGreeting("Hello", "Alice"))
+	assert.Equal(t, "Hello, World!", domain.BuildGreeting("", ""))
 }

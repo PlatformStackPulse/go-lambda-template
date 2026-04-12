@@ -25,7 +25,7 @@ func NewLogger(debug bool) *Logger {
 		Level: level,
 	}
 
-	handler := slog.NewTextHandler(os.Stdout, opts)
+	handler := slog.NewJSONHandler(os.Stdout, opts)
 	baseLogger := slog.New(handler)
 
 	return &Logger{baseLogger}

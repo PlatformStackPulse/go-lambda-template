@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM template for local and quick-start deployment of the Go Lambda API template.
+
+Globals:
+  Function:
+    Runtime: provided.al2023
+    Handler: bootstrap
+    Timeout: 10
+    MemorySize: 512
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        APP_NAME: go-lambda-template
+        APP_ENV: dev
+        APP_VERSION: sam-local
+        AWS_REGION: us-east-1
+        DEBUG: "true"
+        DYNAMODB_TABLE_NAME: !Ref RequestsTable
+        GREETING_PARAMETER_NAME: !Ref GreetingParameter
+        GREETING_PREFIX_OVERRIDE: ""
+        GREETING_SOURCE_LABEL: sam-local
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+
+  RequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: request_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: request_id
+          KeyType: HASH
+
+  GreetingParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /go-lambda-template/dev/greeting-prefix
+      Type: String
+      Value: Hello
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../dist
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Sid: DynamoDBAccess
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource: !GetAtt RequestsTable.Arn
+            - Sid: ReadGreetingParameter
+              Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+                - ssm:GetParametersByPath
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/go-lambda-template/dev/greeting-prefix
+      Events:
+        HelloRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /hello
+        HelloByName:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /hello/{name}
+
+Outputs:
+  LocalApiUrl:
+    Description: Local or deployed API endpoint
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com

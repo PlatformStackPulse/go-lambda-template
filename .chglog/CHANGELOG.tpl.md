@@ -5,7 +5,7 @@
 {{ range .Unreleased.CommitGroups -}}
 ### {{ .Title }}
 {{ range .Commits -}}
-- {{ if .Scope }}**{{ .Scope }}:** {{ end }}{{ .Subject }} ([{{ .Hash.Short }}](https://github.com/PlatformStackPulse/go-template/commit/{{ .Hash.Long }}))
+- {{ if .Scope }}**{{ .Scope }}:** {{ end }}{{ .Subject }} ([{{ .Hash.Short }}](https://github.com/PlatformStackPulse/go-lambda-template/commit/{{ .Hash.Long }}))
 {{ end }}
 {{ end }}
 {{ else -}}
@@ -18,7 +18,7 @@
 {{ range .CommitGroups -}}
 ### {{ .Title }}
 {{ range .Commits -}}
-- {{ if .Scope }}**{{ .Scope }}:** {{ end }}{{ .Subject }} ([{{ .Hash.Short }}](https://github.com/PlatformStackPulse/go-template/commit/{{ .Hash.Long }}))
+- {{ if .Scope }}**{{ .Scope }}:** {{ end }}{{ .Subject }} ([{{ .Hash.Short }}](https://github.com/PlatformStackPulse/go-lambda-template/commit/{{ .Hash.Long }}))
 {{ end }}
 {{ end }}
 

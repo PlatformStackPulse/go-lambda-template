@@ -1,722 +1,263 @@
-# Go Template
+# Go Lambda Template
 
 ![Go Version](https://img.shields.io/badge/Go-1.23+-blue?style=flat-square&logo=go)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)
-![CI Status](https://github.com/PlatformStackPulse/go-template/actions/workflows/ci.yml/badge.svg)
-[![codecov](https://codecov.io/gh/PlatformStackPulse/go-template/branch/main/graph/badge.svg)](https://codecov.io/gh/PlatformStackPulse/go-template)
 ![DevContainer](https://img.shields.io/static/v1?label=DevContainer&message=Ready&color=blue&style=flat-square&logo=visual-studio-code)
 
-<p align="center">
-  <strong>Slim, Production-Ready Go Template</strong><br>
-  Enterprise CI/CD, DevSecOps, clean architecture. Optimized for CLI tools and API servers.
-</p>
+Slim, production-ready GitHub template for building Go AWS Lambda APIs.
 
----
+## Overview
 
-## 🎯 Overview
+This template is opinionated by default:
 
-A **minimal, reusable GitHub template** for building production-ready Go applications. Supports both **CLI single-binary projects** and **API servers** with zero bloat.
+- Lambda behind API Gateway HTTP API
+- DynamoDB table provisioned for application data
+- SSM Parameter Store used for runtime configuration
+- Lambda environment variables exposed through a dedicated runtime adapter
+- CloudWatch logs configured with retention
+- Terraform as the default deployment path
+- Docker plus ECR for the default Lambda package
+- optional zip deployment through S3
+- AWS SAM for local build and local API invocation
 
-**What you get:**
-- ✅ Clean architecture (Domain/Usecase/Adapter layers)
-- ✅ CLI foundation (Cobra framework, ready for commands)
-- ✅ Structured logging (slog)
-- ✅ Configuration management
-- ✅ Comprehensive testing (unit, integration)
-- ✅ DevSecOps (gosec, govulncheck, CodeQL)
-- ✅ GitHub Actions CI/CD (linting, testing, releases)
-- ✅ Docker & multi-platform builds
-- ✅ DevContainer with pre-configured tools
-- ✅ Kubernetes & Terraform examples
+The sample implementation returns a greeting from API Gateway, reads the greeting prefix from SSM, records each request in DynamoDB, and logs structured JSON to CloudWatch.
 
-**What you don't get (keep it slim!):**
-- No bloated feature flag systems
-- No unused HTTP/health endpoints (add only if needed)
-- No example commands cluttering production code (we include one example to remove)
-- No over-engineered abstractions
+## What Developers Edit
 
----
+Most teams only need to touch these files first:
 
-## 🚀 Quick Start
+- `internal/handler/api.go`
+- `internal/usecase/greeting.go`
+- `internal/domain/greeting.go`
+- `test/fixtures/events/apigw-request.json`
 
-### Using as GitHub Template
+Everything else is there to keep packaging, infra, and local workflows out of the way.
+
+## Project Layout
+
+```text
+cmd/lambda/main.go                 # Lambda entrypoint
+internal/app/app.go                # Dependency wiring
+internal/handler/api.go            # API Gateway adapter
+internal/usecase/greeting.go       # Business orchestration
+internal/domain/greeting.go        # Pure domain logic
+internal/adapter/dynamodb/         # DynamoDB integration
+internal/adapter/ssm/              # SSM integration
+deploy/terraform/                  # Production infrastructure
+deploy/sam/template.yaml           # Local SAM workflow and quick-start deploy
+scripts/push-ecr.sh                # Push Docker image to ECR
+test/fixtures/events/              # Sample API Gateway events
+test/integration/lambda/           # Handler integration tests
+```
+
+## Quick Start
+
+### 1. Create a repository from the template
 
 ```bash
-# Create a new repo from this template
-gh repo create my-app --template go-template
+gh repo create my-lambda-api --template PlatformStackPulse/go-lambda-template
+cd my-lambda-api
+```
 
-# Setup
-cd my-app
+### 2. Install local tools
+
+```bash
 make dev-setup
-
-# Build & run
-make build
-./bin/go-template hello --name "World"
 ```
 
-### Example: Add Your First Command
+Also install these separately if they are not already available:
 
-The template includes an example command in `internal/cli/hello.go` (via `NewExampleCommand`). Replace it with your own:
+- AWS SAM CLI
+- Terraform
+- Docker
+- AWS CLI
 
-**1. Create your command:**
-```go
-// internal/cli/mycommand.go
-package cli
-
-import (
-	"github.com/spf13/cobra"
-	"github.com/PlatformStackPulse/go-template/internal/logger"
-)
-
-func NewMyCommand(log *logger.Logger) *cobra.Command {
-	return &cobra.Command{
-		Use:        "mycommand",
-		Short:      "What my command does",
-		Long:       "Detailed description of what my command does",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			log.Info("Running mycommand")
-			// Your logic here
-			return nil
-		},
-	}
-}
-```
-
-**2. Register in main.go:**
-```go
-// cmd/app/main.go
-cmd.AddCommand(cli.NewMyCommand(log))
-```
-
-**3. Remove the example command:**
-```bash
-rm internal/cli/hello.go
-# Update cmd/app/main.go - remove the cli.NewExampleCommand line
-```
-
----
-
-## 📁 Lean Project Structure
-
-```
-go-template/
-├── cmd/app/
-│   └── main.go                 # Entry point (minimal, ~30 lines)
-├── internal/                   # Private packages
-│   ├── cli/                    # Cobra commands
-│   │   ├── root.go            # Root command
-│   │   └── hello.go           # Example command (remove/rename)
-│   ├── config/                # Configuration loading
-│   ├── domain/                # Domain entities
-│   ├── logger/                # Structured logging (slog)
-│   ├── usecase/               # Business logic
-│   └── adapter/               # External integrations (add as needed)
-├── pkg/
-│   └── version/               # Version info (injected at build)
-├── test/
-│   ├── unit/                  # Unit tests
-│   └── integration/           # Integration tests (if needed)
-├── deploy/
-│   ├── kubernetes/            # K8s manifests (optional)
-│   └── terraform/             # IaC (optional)
-├── Makefile                   # Core build targets
-├── Dockerfile                 # Multi-stage build
-├── go.mod / go.sum            # Dependencies
-└── .github/workflows/         # GitHub Actions (6 workflows)
-```
-
----
-
-## 🎯 Two Modes: CLI vs API
-
-### Mode 1: CLI (Single Binary)
-
-Your main.go stays **slim**:
-```go
-func main() {
-	cfg := config.Load()
-	log := logger.NewLogger(cfg.Debug)
-	cmd := cli.NewRootCommand(log)
-	cmd.Version = version.Version
-	
-	if err := cmd.ExecuteContext(context.Background()); err != nil {
-		os.Exit(1)
-	}
-}
-```
-
-**Add your commands** to `internal/cli/` and register them in `cmd/app/main.go`.
-
-### Mode 2: API Server
-
-Extend main.go with HTTP:
-```go
-func main() {
-	cfg := config.Load()
-	log := logger.NewLogger(cfg.Debug)
-	
-	// Create HTTP server
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: setupRoutes(log),
-	}
-	
-	// Run with graceful shutdown
-	// (add your HTTP handler logic)
-}
-```
-
-**Optional**: Add files as needed:
-- `internal/http/server.go` — HTTP server setup
-- `internal/http/handlers.go` — Route handlers  
-- `pkg/health/` — Health check endpoints
-
----
-
-## 📐 Architecture
-
-**Clean layers** with clear separation:
-
-```
-CLI/HTTP Layer (User interaction)
-         ↓
-Usecases (Business logic)
-         ↓
-Domain (Entities, rules)
-         ↓
-Adapters (External services)
-```
-
-Each layer is **independent and testable**.
-
----
-
-## 🪵 Design Philosophy
-
-- **Slim** — Only essential structure, no bloat
-- **Extensible** — Easy to add features without refactoring
-- **Example-first** — Rename/remove example command, add yours
-- **Test-friendly** — Proper layering makes testing straightforward
-- **Single responsibility** — Each package does ONE thing well
-
----
-
-## ⚙️ Common Tasks
+### 3. Run tests
 
 ```bash
-make dev-setup       # Install tools
-make build           # Build binary
-make test            # Run tests
-make coverage        # Coverage report
-make fmt             # Format code
-make lint            # Lint check
-make security        # Security scan
-make docker-build    # Build Docker image
-```
-
-See [Makefile](Makefile) for all targets.
-
----
-
-## 🔄 Customization Checklist
-
-When using this template:
-
-- [ ] Update `go.mod` module name
-- [ ] Rename `go-template` binary in `Makefile` and `README.md`
-- [ ] Remove/rename `internal/cli/hello.go` example command
-- [ ] Update repository references in documentation
-- [ ] Add your commands to `internal/cli/`
-- [ ] Update tests in `test/unit/`
-
----
-
-## 📦 Deployment
-
-### Build for Production
-
-```bash
-make build                # Build locally
-make release             # Build all platforms (macOS/Linux/Windows)
-make docker-build        # Build Docker image
-```
-
-### Docker
-
-```dockerfile
-# Already configured in Dockerfile (multi-stage build)
-docker build -t my-app .
-docker run my-app hello --name "Docker"
-```
-
-### Kubernetes (Optional Example)
-
-```bash
-kubectl apply -f deploy/kubernetes/
-```
-
-See [deploy/kubernetes/](deploy/kubernetes/) for manifests.
-
-### Terraform (Optional Example)
-
-```bash
-cd deploy/terraform
-terraform init
-terraform plan -var-file=terraform.dev.tfvars
-```
-
----
-
-## 🧪 Testing
-
-```bash
-# All tests
 make test
-
-# With coverage
-make coverage
-
-# Specific package
-go test ./internal/usecase/...
-
-# Race detection
-go test -race ./...
 ```
 
----
-
-## 🔐 Security
-
-- Integrated security scanning (gosec, govulncheck, CodeQL)
-- Vulnerability notifications via Dependabot
-- Branch protection on main
-- Commit signing support
-
-See [SECURITY.md](SECURITY.md) for details.
-
----
-
-## 📚 Documentation
-
-- [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute
-- [SECURITY.md](SECURITY.md) — Security policy
-- [WORKFLOW.md](WORKFLOW.md) — Git workflow & branch protection
-- [Makefile](Makefile) — Build targets (run `make help`)
-
----
-
-## 📄 License
-
-MIT License — See [LICENSE](LICENSE)
-
----
-
-## 🎓 Learn More
-
-- [Cobra Framework](https://cobra.dev)
-- [Go Best Practices](https://golang.org/doc/effective_go)
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-
----
-
-**Ready to build?** Fork this template and start coding! 🚀
-
-### Design Patterns Included
-
-- **Command Pattern** — Cobra commands
-- **Mediator Pattern** — Feature manager
-- **Orchestrator Pattern** — Usecase layer
-- **Dependency Injection** — Idiomatic Go
-
----
-
-## 🛠 Available Commands
-
-### Makefile Targets
+### 4. Run the default deployment flow with Terraform
 
 ```bash
-make help              # Show all available targets
-make build             # Build the application
-make run               # Build and run
-make test              # Run all tests with coverage
-make test-unit         # Run unit tests only
-make test-integration  # Run integration tests only
-make coverage          # Generate coverage report
-make clean             # Remove build artifacts
-make install           # Install dependencies
-make lint              # Run linters
-make fmt               # Format code
-make vet               # Run go vet
-make security          # Run security checks
-make sec-update        # Check for security updates
-make dev-setup         # Setup development environment
-make changelog         # Regenerate CHANGELOG.md from commits
-make changelog-check   # Verify CHANGELOG.md is current
-make watch             # Watch for changes (air)
-make version           # Show version info
-make all               # Run all tasks
+make terraform-apply
 ```
 
-### CLI Commands
+This default flow does all of the following:
+
+- creates the ECR repository with Terraform if needed
+- builds the Lambda container image with Docker
+- pushes the image to ECR with the provided bash script
+- applies the full Lambda, API Gateway, DynamoDB, SSM, and CloudWatch stack with Terraform
+
+### 5. Run the API locally with SAM
 
 ```bash
-./bin/go-template --help
-./bin/go-template hello                    # Print "Hello, World!"
-./bin/go-template hello --name Alice       # Print "Hello, Alice!"
-./bin/go-template version                  # Show version information
+make sam-start-api
 ```
 
----
-
-## 🧪 Testing
-
-### Running Tests
+Then call the sample endpoint:
 
 ```bash
-# All tests with coverage
-make test
-
-# Specific test suite
-make test-unit
-make test-integration
-
-# Generate HTML coverage report
-make coverage
-
-# Run with race detector
-go test -race ./...
+curl http://127.0.0.1:3000/hello/Ada
 ```
 
-### Test Coverage
-
-- **Minimum threshold:** 70%
-- **Enforced in CI:** Yes
-- **Table-driven tests:** Domain and usecase layers
-- **Mock patterns:** Via interfaces
-
----
-
-## 🔐 Security & Quality
-
-### Integrated Security Tools
-
-| Tool | Purpose | Status |
-|------|---------|--------|
-| `golangci-lint` | Code quality & style | ✅ CI/CD |
-| `gosec` | Security issues | ✅ CI/CD |
-| `govulncheck` | Dependency vulnerabilities | ✅ CI/CD |
-| `CodeQL` | Static analysis | ✅ CI/CD |
-| `Dependabot` | Dependency updates | ✅ Automated |
-
-### Security Checks
+### 6. Optional zip deployment path
 
 ```bash
-# Run all security scans
-make security
-
-# Check for vulnerabilities
-make sec-update
-
-# Manual gosec scan
-gosec ./...
-
-# Manual govulncheck
-govulncheck ./...
+make package
+make terraform-apply-zip
 ```
 
----
+Use the zip path only if you explicitly want S3-backed Lambda artifacts instead of the default ECR image flow.
 
-## 📦 Versioning & Releases
+### 7. Call the deployed API
 
-### Semantic Versioning
-
-This project follows [Semantic Versioning](https://semver.org/):
-
-```
-MAJOR.MINOR.PATCH
-  ↑      ↑      ↑
-  │      │      └─ Bug fixes
-  │      └────────── New features (backward compatible)
-  └───────────────── Breaking changes
-```
-
-### Conventional Commits
-
-Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
-
-```
-<type>(<scope>): <description>
-
-<body>
-
-<footer>
-```
-
-**Types:**
-- `feat` — New feature
-- `fix` — Bug fix
-- `docs` — Documentation
-- `style` — Code style
-- `refactor` — Code refactoring
-- `perf` — Performance improvement
-- `test` — Test additions/updates
-- `chore` — Build, dependencies, etc.
-
-**Examples:**
-```
-feat: add hello command with name parameter
-fix: resolve panic in logger initialization
-docs: update README with quick start guide
-chore: upgrade Go from 1.21 to 1.22
-```
-
-### Automated Release Process
-
-1. **Create and push tag:**
-   ```bash
-   git tag v1.2.3
-   git push origin v1.2.3
-   ```
-
-2. **Release workflow triggers:**
-   - Multi-platform builds
-   - GitHub Release creation
-   - Docker image push
-   - SBOM generation
-
-3. **Artifacts available at:** `https://github.com/PlatformStackPulse/my-app/releases/tag/v1.2.3`
-
-### Changelog Strategy
-
-- `CHANGELOG.md` is generated from Conventional Commits using `git-chglog`.
-- On merges/pushes to `main`, `.github/workflows/changelog.yml` updates and commits `CHANGELOG.md` automatically.
-- Maintainers can regenerate locally with:
+After apply, call the deployed API using the Terraform output:
 
 ```bash
-make changelog
+terraform -chdir=deploy/terraform output -raw api_gateway_invoke_url
+curl "$(terraform -chdir=deploy/terraform output -raw api_gateway_invoke_url)/hello/Ada"
 ```
 
----
+## Sample Behavior
 
-## 🌟 Feature Flags
+The sample flow is:
 
-### Quick Example
+1. API Gateway invokes Lambda on `GET /hello` or `GET /hello/{name}`.
+2. Lambda reads the greeting prefix from SSM Parameter Store.
+3. Lambda reads optional runtime overrides from environment variables.
+4. Lambda writes a request record to DynamoDB.
+5. Lambda returns JSON like this:
 
-```go
-fm := feature.NewManager()
-
-if fm.IsEnabled(feature.FeatureHello) {
-    fmt.Println("Feature is enabled!")
+```json
+{
+  "message": "Hello, Ada!",
+  "request_id": "...",
+  "source": "$default",
+  "timestamp": "2026-04-12T12:00:00Z"
 }
 ```
 
-### Define Flags
+## Example Customization
 
-Edit `internal/feature/flags.go`:
+If you want to replace the sample greeting logic with your own business flow:
+
+1. Change the API contract in `internal/handler/api.go`.
+2. Replace the use case in `internal/usecase/greeting.go`.
+3. Update the environment adapter in `internal/adapter/env/runtime_settings.go` if you want different env-driven behavior.
+4. Update the DynamoDB and SSM adapters if your data model changes.
+5. Update the fixture in `test/fixtures/events/apigw-request.json`.
+
+Example: keeping the same route but returning a product-specific message.
 
 ```go
-const (
-    FeatureNewAPI    Flag = "feature_new_api"
-    FeatureMetrics   Flag = "feature_metrics"
-)
+func (uc *GreetingUseCase) Execute(ctx context.Context, input GreetingInput) (GreetingOutput, error) {
+	prefix, err := uc.configProvider.GreetingPrefix(ctx)
+	if err != nil {
+		return GreetingOutput{}, err
+	}
+
+	message := fmt.Sprintf("%s from %s", prefix, domain.NormalizeName(input.Name))
+	return GreetingOutput{Message: message, RequestID: input.RequestID, Source: input.Source}, nil
+}
 ```
 
-### Enable Flags
+## Environment Variables
+
+The template uses these Lambda environment variables:
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `APP_NAME` | Logical application name | `go-lambda-template` |
+| `APP_ENV` | Environment name | `dev` |
+| `APP_VERSION` | Build or release version | `dev` |
+| `AWS_REGION` | AWS region | `us-east-1` |
+| `DEBUG` | Debug logging flag | `false` |
+| `DYNAMODB_TABLE_NAME` | DynamoDB table used by the sample adapter | `${APP_NAME}-${APP_ENV}-requests` |
+| `GREETING_PARAMETER_NAME` | SSM parameter that stores the greeting prefix | `/${APP_NAME}/${APP_ENV}/greeting-prefix` |
+| `GREETING_PREFIX_OVERRIDE` | Optional env var override for the greeting prefix | `""` |
+| `GREETING_SOURCE_LABEL` | Optional env var override for the response source field | `""` |
+
+## Commands
 
 ```bash
-# Environment variable format
-export FEATURE_FLAGS="feature_new_api=true,feature_metrics=false"
-./bin/go-template hello
+make build           # Build the bootstrap binary
+make package         # Build and zip the Lambda artifact
+make docker-build    # Build the Lambda container image
+make terraform-bootstrap # Create the ECR repository before the first push
+make ecr-push        # Push the image to ECR
+make test            # Run all tests
+make lint            # Run golangci-lint
+make security        # Run gosec and govulncheck
+make sam-build       # Prepare the SAM application
+make sam-invoke      # Invoke the Lambda locally with a sample event
+make sam-start-api   # Start the local API Gateway emulator
+make terraform-plan  # Plan the default image-based deployment
+make terraform-apply # Build, push, and deploy the default image-based stack
+make terraform-plan-zip  # Plan the optional zip deployment
+make terraform-apply-zip # Deploy the optional zip + S3 path
 ```
 
-### Future Extensions
+## Infrastructure Defaults
 
-- Config file support (YAML/JSON)
-- Remote flag service integration
-- Gradual rollout (percentage)
-- User-based targeting
-- A/B testing support
+Terraform provisions these resources by default:
 
----
+- ECR repository for the Lambda container image
+- Lambda function deployed from ECR by default
+- API Gateway HTTP API with `GET /hello` and `GET /hello/{name}`
+- DynamoDB table for request records
+- SSM parameter for the greeting prefix
+- CloudWatch log groups for Lambda and API Gateway access logs
+- IAM role with Lambda basic execution plus scoped DynamoDB and SSM access plus Lambda environment variables
 
-## 🐳 Docker
+SAM provides a matching local workflow. Terraform is the first and default deployment path. The zip + S3 deployment path is supported, but optional.
 
-### Build Image
+## Testing
+
+The repository includes:
+
+- unit tests for config, domain logic, use case orchestration, handler mapping, and AWS adapters
+- integration tests for the API Gateway handler using a fixture event
+
+Run everything with:
 
 ```bash
-# Build locally
-docker build -t go-template:latest .
-
-# Run container
-docker run --rm go-template:latest hello
-
-# Run with feature flags
-docker run --rm \
-  -e FEATURE_FLAGS="feature_hello=true" \
-  go-template:latest hello
+make test
 ```
 
-### Docker Compose
+## How To Use This Template
+
+Use this sequence when turning the template into your own Lambda service:
+
+1. Install AWS SAM CLI locally and run the sample API end to end:
 
 ```bash
-# Development
-docker-compose up dev
-
-# Run tests
-docker-compose run test
-
-# Run linter
-docker-compose run lint
+make sam-start-api
+curl http://127.0.0.1:3000/hello/Ada
 ```
 
----
+2. Edit the sample business logic in `internal/usecase/greeting.go` and the request mapping in `internal/handler/api.go` so the Lambda matches your real API behavior.
 
-## 🚀 CI/CD Pipelines
-
-### GitHub Actions Workflows
-
-#### 1. **CI Pipeline** (`.github/workflows/ci.yml`)
-Runs on every push and PR:
-- Code linting (golangci-lint)
-- Format verification
-- Unit & integration tests
-- Coverage enforcement (≥70%)
-- Security scans (gosec, CodeQL)
-- PR commit message validation
-- Multi-version Go testing (1.21, 1.22)
-
-#### 2. **Release Pipeline** (`.github/workflows/release.yml`)
-Triggers on version tags (`v*.*.*`):
-- Multi-platform builds (Linux, macOS, Windows)
-- Checksum generation
-- GitHub Release creation with artifacts
-- Docker image build and push
-- SBOM generation
-
-#### 3. **Dependency Management** (`.github/workflows/dependencies.yml`)
-Weekly automated tasks:
-- Dependency updates
-- Security vulnerability scans
-- Automated PR creation
-
-#### 4. **CodeQL Analysis** (`.github/workflows/codeql.yml`)
-Runs code scanning on pushes/PRs to `main` and on a weekly schedule.
-
-#### 5. **Changelog Update** (`.github/workflows/changelog.yml`)
-Updates `CHANGELOG.md` from Conventional Commits on pushes to `main`.
-
----
-
-## 📚 Infrastructure Templates
-
-### Kubernetes
-
-Deploy to Kubernetes:
+3. Set your AWS values in `deploy/terraform/terraform.dev.tfvars` and deploy the default image-based stack:
 
 ```bash
-kubectl apply -f deploy/kubernetes/
-
-# Check deployment
-kubectl get pods -l app=go-template
+make terraform-apply
 ```
 
-### Terraform
+This gives you a practical flow:
 
-Deploy to AWS Lambda:
+- verify the template locally with SAM
+- replace the sample logic with your own logic
+- deploy the real stack with Terraform
 
-```bash
-cd deploy/terraform
+## Next Steps After Creating Your Repo
 
-terraform init
-terraform plan -var-file=terraform.dev.tfvars
-terraform apply -var-file=terraform.dev.tfvars
-```
+1. Rename the module in `go.mod`.
+2. Rename the AWS resource defaults in Terraform and SAM.
+3. Replace the sample greeting use case with your own business logic.
+4. Adjust DynamoDB schema and SSM parameter names for your project.
+5. Update the example event fixture and integration tests.
 
----
-
-## 📖 Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DEBUG` | Enable debug logging | `false` |
-| `APP_NAME` | Application name | `go-template` |
-| `APP_VERSION` | Application version | `dev` |
-| `FEATURE_FLAGS` | Enabled feature flags | "" |
-
-### Example `.env`
-
-```env
-DEBUG=true
-APP_NAME=my-app
-APP_VERSION=v1.0.0
-FEATURE_FLAGS=feature_hello=true,feature_metrics=true
-```
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/awesome-feature`
-3. Commit with conventional format: `git commit -m "feat: add awesome feature"`
-4. Push to branch: `git push origin feature/awesome-feature`
-5. Open a Pull Request
-
-### PR Requirements
-
-- ✅ Must follow Conventional Commits
-- ✅ Tests passing (coverage ≥ 70%)
-- ✅ Code linting passing
-- ✅ No security warnings
-- ✅ Documentation updated
-
----
-
-## 📋 Checklist for New Projects
-
-When using this template:
-
-- [ ] Update `go.mod` module path
-- [ ] Update `module path in code imports`
-- [ ] Create `.github/CODEOWNERS` file
-- [ ] Update README with project-specific info
-- [ ] Configure branch protection rules
-- [ ] Setup Dependabot alerts
-- [ ] Update repository description
-- [ ] Add repository topics
-- [ ] Customize GitHub Actions (if needed)
-- [ ] Update Terraform variables for your environment
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License — see [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-Built with best practices from:
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Conventional Commits](https://www.conventionalcommits.org/)
-- [Semantic Versioning](https://semver.org/)
-- [Go Best Practices](https://golang.org/doc/effective_go)
-- [GoReleaser](https://goreleaser.com/)
-- [Cobra](https://cobra.dev/)
-
----
-
-## 📞 Support
-
-- 📖 [Documentation](https://github.com/PlatformStackPulse/go-template/wiki)
-- 🐛 [Report Issues](https://github.com/PlatformStackPulse/go-template/issues)
-- 💬 [Discussions](https://github.com/PlatformStackPulse/go-template/discussions)
-
----
-
-<p align="center">
-  <sub>Built with ❤️ for platform engineers and Go developers</sub>
-</p>
+More detailed customization notes are in `TEMPLATE_GUIDE.md` and `WORKFLOW.md`.

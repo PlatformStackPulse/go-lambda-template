@@ -27,6 +27,11 @@ go.work.sum
 # env file
 .env
 
+# Generated build and local emulation artifacts
+dist/
+.aws-sam/
+.terraform/
+
 # Editor/IDE
 # .idea/
 # .vscode/
