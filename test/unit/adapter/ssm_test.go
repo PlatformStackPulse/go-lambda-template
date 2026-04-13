@@ -27,26 +27,34 @@ func (s *stubGetParameterClient) GetParameter(_ context.Context, _ *ssm.GetParam
 	return s.output, nil
 }
 
-func TestGreetingParameterStoreGreetingPrefix(t *testing.T) {
-	store := ssmadapter.NewGreetingParameterStore(&stubGetParameterClient{output: &ssm.GetParameterOutput{Parameter: &ssmtypes.Parameter{Value: aws.String("Hello")}}}, "/app/dev/greeting-prefix")
+func TestParameterStoreStringValue(t *testing.T) {
+	store := ssmadapter.NewParameterStore(&stubGetParameterClient{output: &ssm.GetParameterOutput{Parameter: &ssmtypes.Parameter{Value: aws.String(`{"sample.greeting.prefix":"Hello"}`)}}}, "/app/dev/app-config")
 
-	prefix, err := store.GreetingPrefix(context.Background())
+	prefix, err := store.StringValue(context.Background(), "sample.greeting.prefix")
 	require.NoError(t, err)
 	assert.Equal(t, "Hello", prefix)
 }
 
-func TestGreetingParameterStoreReturnsErrorForEmptyValue(t *testing.T) {
-	store := ssmadapter.NewGreetingParameterStore(&stubGetParameterClient{output: &ssm.GetParameterOutput{Parameter: &ssmtypes.Parameter{Value: aws.String(" ")}}}, "/app/dev/greeting-prefix")
+func TestParameterStoreReturnsErrorForEmptyDocument(t *testing.T) {
+	store := ssmadapter.NewParameterStore(&stubGetParameterClient{output: &ssm.GetParameterOutput{Parameter: &ssmtypes.Parameter{Value: aws.String(" ")}}}, "/app/dev/app-config")
 
-	_, err := store.GreetingPrefix(context.Background())
+	_, err := store.StringValue(context.Background(), "sample.greeting.prefix")
 	require.Error(t, err)
 	assert.True(t, apperrors.IsCode(err, apperrors.ErrConfiguration))
 }
 
-func TestGreetingParameterStoreReturnsReadError(t *testing.T) {
-	store := ssmadapter.NewGreetingParameterStore(&stubGetParameterClient{err: errors.New("boom")}, "/app/dev/greeting-prefix")
+func TestParameterStoreReturnsInvalidJSONError(t *testing.T) {
+	store := ssmadapter.NewParameterStore(&stubGetParameterClient{output: &ssm.GetParameterOutput{Parameter: &ssmtypes.Parameter{Value: aws.String("not-json")}}}, "/app/dev/app-config")
 
-	_, err := store.GreetingPrefix(context.Background())
+	_, err := store.StringValue(context.Background(), "sample.greeting.prefix")
+	require.Error(t, err)
+	assert.True(t, apperrors.IsCode(err, apperrors.ErrConfiguration))
+}
+
+func TestParameterStoreReturnsReadError(t *testing.T) {
+	store := ssmadapter.NewParameterStore(&stubGetParameterClient{err: errors.New("boom")}, "/app/dev/app-config")
+
+	_, err := store.StringValue(context.Background(), "sample.greeting.prefix")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "read SSM parameter")
 }

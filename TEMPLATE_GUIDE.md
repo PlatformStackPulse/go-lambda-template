@@ -6,8 +6,9 @@ This template is built for teams that want to start with a working Go Lambda API
 
 - Lambda runtime entrypoint
 - API Gateway HTTP API trigger
-- DynamoDB and SSM adapters ready for extension
+- DynamoDB and SSM app-config adapters ready for extension
 - environment variable adapter for runtime overrides
+- optional Aurora PostgreSQL Serverless v2 (Data API) infrastructure
 - Terraform as the default deployment path
 - Docker and ECR as the default Lambda packaging path
 - optional zip plus S3 deployment path
@@ -20,11 +21,12 @@ After creating a repository from this template, make these changes first:
 
 1. Update the Go module path in `go.mod`.
 2. Change `project_name` in `deploy/terraform/terraform.dev.tfvars`.
-3. Rename the SSM parameter path and DynamoDB table defaults if needed.
+3. Review `api_base_path`, SSM parameter naming, DynamoDB table defaults, and any S3 or KMS values you want to expose.
 4. Review the runtime environment overrides in `internal/adapter/env/runtime_settings.go`.
 5. Replace the sample greeting flow in `internal/usecase/greeting.go`.
 6. Update the API contract in `internal/handler/api.go` if your route or payload changes.
 7. Replace the event fixture in `test/fixtures/events/apigw-request.json`.
+8. If you need relational data, set `enable_postgres = true` in `deploy/terraform/terraform.dev.tfvars` and use the generated Data API environment variables.
 
 ## Extension Points
 
@@ -54,9 +56,12 @@ The template ships with:
 
 - `internal/adapter/dynamodb/greeting_recorder.go`
 - `internal/adapter/env/runtime_settings.go`
-- `internal/adapter/ssm/greeting_parameter_store.go`
+- `internal/adapter/postgres/greeting_recorder.go`
+- `internal/adapter/ssm/parameter_store.go`
 
 Replace or extend these adapters for your own repositories, data access patterns, or configuration needs.
+
+The PostgreSQL adapter intentionally includes both insert and select examples so teams can copy a complete RDS Data API repository pattern instead of starting from a write-only sample.
 
 ## Suggested Customization Flow
 
@@ -84,7 +89,7 @@ Update:
 
 Update:
 
-- the SSM adapter
+- the SSM app-config document schema
 - the parameter resource in Terraform and SAM
 - the environment variables surfaced in Lambda
 
@@ -123,6 +128,14 @@ make terraform-apply-zip
 - keep business logic outside AWS SDK code
 - keep resource names and IAM scopes explicit
 - prefer fixture-driven integration tests over ad hoc manual verification
+
+## Twelve-Factor Expectations
+
+- keep config in environment variables and SSM, not hardcoded constants
+- treat DynamoDB, SSM, and optional PostgreSQL as replaceable backing resources
+- keep handler processes stateless and push mutable data to backing services
+- separate build (`make package` or image build), release (Terraform apply), and run (Lambda)
+- emit logs to stdout as structured events and avoid file-based logging
 
 ## When to Add More Services
 

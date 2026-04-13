@@ -16,12 +16,22 @@ Globals:
         APP_ENV: dev
         APP_VERSION: sam-local
         DEBUG: "true"
-        DYNAMODB_TABLE_NAME:
+        API_BASE_PATH: /hello
+        API_SOURCE_LABEL: sam-local
+        DYNAMODB_REQUESTS_TABLE_NAME:
           Ref: RequestsTable
-        GREETING_PARAMETER_NAME:
-          Ref: GreetingParameter
-        GREETING_PREFIX_OVERRIDE: ""
-        GREETING_SOURCE_LABEL: sam-local
+        SSM_PARAMETER_PREFIX: /go-lambda-template/dev
+        APP_CONFIG_PARAMETER_NAME:
+          Ref: AppConfigParameter
+        S3_SOURCE_BUCKET_NAME: ""
+        S3_SOURCE_KEY_PREFIX: ""
+        S3_TARGET_BUCKET_NAME: ""
+        S3_TARGET_KEY_PREFIX: ""
+        KMS_KEY_ARN: ""
+        POSTGRES_ENABLED: "false"
+        POSTGRES_DATABASE_NAME: app
+        POSTGRES_CLUSTER_ARN: ""
+        POSTGRES_SECRET_ARN: ""
 
 Resources:
   HttpApi:
@@ -40,12 +50,12 @@ Resources:
         - AttributeName: request_id
           KeyType: HASH
 
-  GreetingParameter:
+  AppConfigParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: /go-lambda-template/dev/greeting-prefix
+      Name: /go-lambda-template/dev/app-config
       Type: String
-      Value: Hello
+      Value: '{"api.base_path":"/hello","dynamodb.requests_table_name":"go-lambda-template-dev-requests","platform.environment":"dev","platform.name":"go-lambda-template","platform.version":"sam-local","sample.greeting.prefix":"Hello","s3.source.bucket":"","s3.source.key_prefix":"","s3.target.bucket":"","s3.target.key_prefix":"","kms.key_arn":""}'
 
   ApiFunction:
     Type: AWS::Serverless::Function
@@ -67,23 +77,23 @@ Resources:
                 Fn::GetAtt:
                   - RequestsTable
                   - Arn
-            - Sid: ReadGreetingParameter
+            - Sid: ReadAppConfigParameter
               Effect: Allow
               Action:
                 - ssm:GetParameter
                 - ssm:GetParameters
                 - ssm:GetParametersByPath
               Resource:
-                Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/go-lambda-template/dev/greeting-prefix
+                Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/go-lambda-template/dev/app-config
       Events:
-        HelloRoot:
+        SampleBase:
           Type: HttpApi
           Properties:
             ApiId:
               Ref: HttpApi
             Method: GET
             Path: /hello
-        HelloByName:
+        SampleByName:
           Type: HttpApi
           Properties:
             ApiId:

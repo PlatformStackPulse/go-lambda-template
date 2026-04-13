@@ -1,6 +1,6 @@
 # Go Lambda Template
 
-![Go Version](https://img.shields.io/badge/Go-1.23+-blue?style=flat-square&logo=go)
+![Go Version](https://img.shields.io/badge/Go-1.24+-blue?style=flat-square&logo=go)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)
 ![DevContainer](https://img.shields.io/static/v1?label=DevContainer&message=Ready&color=blue&style=flat-square&logo=visual-studio-code)
 
@@ -12,7 +12,8 @@ This template is opinionated by default:
 
 - Lambda behind API Gateway HTTP API
 - DynamoDB table provisioned for application data
-- SSM Parameter Store used for runtime configuration
+- optional Aurora PostgreSQL Serverless v2 (Data API) backing service
+- SSM Parameter Store used for a JSON app-config document
 - Lambda environment variables exposed through a dedicated runtime adapter
 - CloudWatch logs configured with retention
 - Terraform as the default deployment path
@@ -20,7 +21,24 @@ This template is opinionated by default:
 - optional zip deployment through S3
 - AWS SAM for local build and local API invocation
 
-The sample implementation returns a greeting from API Gateway, reads the greeting prefix from SSM, records each request in DynamoDB, and logs structured JSON to CloudWatch.
+The sample implementation returns a greeting from API Gateway, reads the sample greeting prefix from a platform app-config document in SSM, records each request in DynamoDB, and logs structured JSON to CloudWatch.
+
+## Twelve-Factor Guidance
+
+This template is designed so teams can follow Twelve-Factor App principles from day one:
+
+1. Codebase: one Git repository, many deploys via environment-specific tfvars.
+2. Dependencies: dependencies are explicit in `go.mod` and isolated by Go modules.
+3. Config: runtime configuration is injected through environment variables and SSM, not hardcoded.
+4. Backing services: DynamoDB, SSM, and optional Aurora PostgreSQL are treated as attached resources.
+5. Build, release, run: packaging (`make package` or image build), Terraform apply, and runtime execution are separate stages.
+6. Processes: Lambda executes stateless request handlers.
+7. Port binding: API Gateway exposes HTTP endpoints; local dev uses SAM API emulation.
+8. Concurrency: Lambda scales horizontally by concurrent invocations.
+9. Disposability: function startup and shutdown are short-lived by design.
+10. Dev/prod parity: same codepath, same Terraform modules, environment-specific values only.
+11. Logs: structured JSON logs are emitted to stdout and consumed by CloudWatch.
+12. Admin processes: one-off operational tasks are run as scripts/commands, not embedded in request handlers.
 
 ## What Developers Edit
 
@@ -42,6 +60,7 @@ internal/handler/api.go            # API Gateway adapter
 internal/usecase/greeting.go       # Business orchestration
 internal/domain/greeting.go        # Pure domain logic
 internal/adapter/dynamodb/         # DynamoDB integration
+internal/adapter/postgres/         # Aurora PostgreSQL Data API integration
 internal/adapter/ssm/              # SSM integration
 deploy/terraform/                  # Production infrastructure
 deploy/sam/template.yaml           # Local SAM workflow and quick-start deploy
@@ -89,7 +108,7 @@ This default flow does all of the following:
 - creates the ECR repository with Terraform if needed
 - builds the Lambda container image with Docker
 - pushes the image to ECR with the provided bash script
-- applies the full Lambda, API Gateway, DynamoDB, SSM, and CloudWatch stack with Terraform
+- applies the full Lambda, API Gateway, DynamoDB, SSM app-config, and CloudWatch stack with Terraform
 
 ### 5. Run the API locally with SAM
 
@@ -125,9 +144,9 @@ curl "$(terraform -chdir=deploy/terraform output -raw api_gateway_invoke_url)/he
 
 The sample flow is:
 
-1. API Gateway invokes Lambda on `GET /hello` or `GET /hello/{name}`.
-2. Lambda reads the greeting prefix from SSM Parameter Store.
-3. Lambda reads optional runtime overrides from environment variables.
+1. API Gateway invokes Lambda on `GET /hello` or `GET /hello/{name}` by default.
+2. Lambda reads a JSON app-config document from SSM Parameter Store.
+3. The greeting sample reads `sample.greeting.prefix` from that document and optional runtime overrides from environment variables.
 4. Lambda writes a request record to DynamoDB.
 5. Lambda returns JSON like this:
 
@@ -154,7 +173,7 @@ Example: keeping the same route but returning a product-specific message.
 
 ```go
 func (uc *GreetingUseCase) Execute(ctx context.Context, input GreetingInput) (GreetingOutput, error) {
-	prefix, err := uc.configProvider.GreetingPrefix(ctx)
+	prefix, err := uc.configProvider.StringValue(ctx, "sample.greeting.prefix")
 	if err != nil {
 		return GreetingOutput{}, err
 	}
@@ -175,10 +194,21 @@ The template uses these Lambda environment variables:
 | `APP_VERSION` | Build or release version | `dev` |
 | `AWS_REGION` | AWS region injected by Lambda runtime (reserved) | runtime-provided |
 | `DEBUG` | Debug logging flag | `false` |
-| `DYNAMODB_TABLE_NAME` | DynamoDB table used by the sample adapter | `${APP_NAME}-${APP_ENV}-requests` |
-| `GREETING_PARAMETER_NAME` | SSM parameter that stores the greeting prefix | `/${APP_NAME}/${APP_ENV}/greeting-prefix` |
-| `GREETING_PREFIX_OVERRIDE` | Optional env var override for the greeting prefix | `""` |
-| `GREETING_SOURCE_LABEL` | Optional env var override for the response source field | `""` |
+| `API_BASE_PATH` | API Gateway base path used by the sample route | `/hello` |
+| `API_SOURCE_LABEL` | Optional response source label override | `""` |
+| `DYNAMODB_REQUESTS_TABLE_NAME` | DynamoDB table used by the sample adapter | `${APP_NAME}-${APP_ENV}-requests` |
+| `SSM_PARAMETER_PREFIX` | Shared SSM prefix for platform configuration | `/${APP_NAME}/${APP_ENV}` |
+| `APP_CONFIG_PARAMETER_NAME` | SSM parameter that stores the JSON app-config document | `/${APP_NAME}/${APP_ENV}/app-config` |
+| `S3_SOURCE_BUCKET_NAME` | Optional source S3 bucket name | `""` |
+| `S3_SOURCE_KEY_PREFIX` | Optional source S3 key prefix | `""` |
+| `S3_TARGET_BUCKET_NAME` | Optional target S3 bucket name | `""` |
+| `S3_TARGET_KEY_PREFIX` | Optional target S3 key prefix | `""` |
+| `KMS_KEY_ARN` | Optional KMS key ARN surfaced to the runtime | `""` |
+| `SAMPLE_GREETING_PREFIX` | Optional sample-only env override for local testing | `""` |
+| `POSTGRES_ENABLED` | Enables optional Aurora PostgreSQL integration paths | `false` |
+| `POSTGRES_DATABASE_NAME` | Database name for optional Aurora PostgreSQL | `app` |
+| `POSTGRES_CLUSTER_ARN` | Aurora cluster ARN for Data API clients | `""` |
+| `POSTGRES_SECRET_ARN` | Secrets Manager ARN for Data API credentials | `""` |
 
 ## Commands
 
@@ -206,13 +236,50 @@ Terraform provisions these resources by default:
 
 - ECR repository for the Lambda container image
 - Lambda function deployed from ECR by default
-- API Gateway HTTP API with `GET /hello` and `GET /hello/{name}`
+- API Gateway HTTP API with a configurable base path, defaulting to `GET /hello` and `GET /hello/{name}`
 - DynamoDB table for request records
-- SSM parameter for the greeting prefix
+- SSM parameter for the JSON app-config document
 - CloudWatch log groups for Lambda and API Gateway access logs
-- IAM role with Lambda basic execution plus scoped DynamoDB and SSM access plus Lambda environment variables
+- IAM role with Lambda basic execution plus scoped DynamoDB and SSM access plus Lambda environment variables for API, storage, KMS, and optional Postgres wiring
+
+Optional resource set:
+
+- Aurora PostgreSQL Serverless v2 cluster with Data API enabled
+- Secrets Manager-managed database credentials
+- Lambda IAM access for RDS Data API and the generated secret
 
 SAM provides a matching local workflow. Terraform is the first and default deployment path. The zip + S3 deployment path is supported, but optional.
+
+## Optional AWS PostgreSQL Setup
+
+The template now includes optional Aurora PostgreSQL Serverless v2 support through Terraform.
+
+1. Edit `deploy/terraform/terraform.dev.tfvars`:
+
+```hcl
+enable_postgres        = true
+postgres_database_name = "app"
+postgres_master_username = "appadmin"
+postgres_min_acu       = 0.5
+postgres_max_acu       = 2
+```
+
+2. Apply infrastructure:
+
+```bash
+make terraform-apply
+```
+
+3. Read Postgres outputs for runtime wiring:
+
+```bash
+terraform -chdir=deploy/terraform output -raw postgres_cluster_arn
+terraform -chdir=deploy/terraform output -raw postgres_secret_arn
+```
+
+Use those values with the RDS Data API from your adapters to keep Lambda stateless and Twelve-Factor friendly.
+
+The template now includes a sample adapter at `internal/adapter/postgres/greeting_recorder.go` that creates a `greeting_records` table on first use, writes each request through the RDS Data API, fetches a single record by request ID, and lists recent records when Postgres is enabled.
 
 ## Testing
 
@@ -257,7 +324,7 @@ This gives you a practical flow:
 1. Rename the module in `go.mod`.
 2. Rename the AWS resource defaults in Terraform and SAM.
 3. Replace the sample greeting use case with your own business logic.
-4. Adjust DynamoDB schema and SSM parameter names for your project.
+4. Adjust DynamoDB schema, the JSON app-config document, and any platform env vars for your project.
 5. Update the example event fixture and integration tests.
 
 More detailed customization notes are in `TEMPLATE_GUIDE.md` and `WORKFLOW.md`.

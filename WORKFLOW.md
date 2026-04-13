@@ -86,5 +86,7 @@ GITHUB_OWNER=PlatformStackPulse GITHUB_REPO=go-lambda-template BRANCH=main scrip
 - Lambda logs are JSON structured through `slog`
 - CloudWatch log retention is managed in Terraform
 - API Gateway access logging is enabled in Terraform
-- the sample Lambda role includes scoped DynamoDB and SSM access
-- the sample Lambda runtime reads optional overrides from environment variables through a dedicated adapter
+- the sample Lambda role includes scoped DynamoDB and SSM app-config access
+- the sample Lambda runtime reads platform env vars and an SSM app-config document through dedicated adapters
+- optional Aurora PostgreSQL Serverless v2 (Data API) can be enabled through Terraform variables
+- the template expects Twelve-Factor practices: env-driven config, stateless handlers, and backing-service resource abstraction

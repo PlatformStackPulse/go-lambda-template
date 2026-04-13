@@ -20,7 +20,7 @@ type stubConfigProvider struct {
 	err    error
 }
 
-func (s stubConfigProvider) GreetingPrefix(context.Context) (string, error) {
+func (s stubConfigProvider) StringValue(context.Context, string) (string, error) {
 	return s.prefix, s.err
 }
 
@@ -39,12 +39,15 @@ type stubEnvironment struct {
 	sourceLabel    string
 }
 
-func (s stubEnvironment) GreetingPrefixOverride(context.Context) string {
-	return s.prefixOverride
-}
-
-func (s stubEnvironment) GreetingSourceLabel(context.Context) string {
-	return s.sourceLabel
+func (s stubEnvironment) Lookup(_ context.Context, key string) string {
+	switch key {
+	case "SAMPLE_GREETING_PREFIX":
+		return s.prefixOverride
+	case "API_SOURCE_LABEL":
+		return s.sourceLabel
+	default:
+		return ""
+	}
 }
 
 func TestGreetingUseCaseExecute(t *testing.T) {

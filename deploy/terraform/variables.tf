@@ -83,26 +83,61 @@ variable "log_retention_in_days" {
   default     = 14
 }
 
-variable "greeting_prefix" {
-  description = "Default greeting prefix stored in SSM Parameter Store"
+variable "api_base_path" {
+  description = "Base path exposed by API Gateway for the sample HTTP routes"
   type        = string
-  default     = "Hello"
+  default     = "/hello"
+
+  validation {
+    condition     = startswith(var.api_base_path, "/")
+    error_message = "api_base_path must start with /."
+  }
 }
 
-variable "ssm_parameter_name" {
-  description = "Optional explicit SSM parameter name for the greeting prefix"
+variable "api_source_label" {
+  description = "Optional response source label surfaced through Lambda environment variables"
   type        = string
   default     = ""
 }
 
-variable "greeting_prefix_override" {
-  description = "Optional Lambda environment variable override for the greeting prefix"
+variable "ssm_parameter_prefix" {
+  description = "Optional explicit SSM parameter prefix for platform configuration"
   type        = string
   default     = ""
 }
 
-variable "greeting_source_label" {
-  description = "Optional Lambda environment variable override for the response source label"
+variable "app_config_parameter_name" {
+  description = "Optional explicit SSM parameter name that stores the JSON app configuration document"
+  type        = string
+  default     = ""
+}
+
+variable "s3_source_bucket_name" {
+  description = "Optional source S3 bucket name exposed to the runtime"
+  type        = string
+  default     = ""
+}
+
+variable "s3_source_key_prefix" {
+  description = "Optional source S3 key prefix exposed to the runtime"
+  type        = string
+  default     = ""
+}
+
+variable "s3_target_bucket_name" {
+  description = "Optional target S3 bucket name exposed to the runtime"
+  type        = string
+  default     = ""
+}
+
+variable "s3_target_key_prefix" {
+  description = "Optional target S3 key prefix exposed to the runtime"
+  type        = string
+  default     = ""
+}
+
+variable "kms_key_arn" {
+  description = "Optional KMS key ARN exposed to the runtime"
   type        = string
   default     = ""
 }
@@ -123,4 +158,58 @@ variable "lambda_s3_key" {
   description = "S3 object key used for the optional zip deployment path"
   type        = string
   default     = "lambda/lambda.zip"
+}
+
+variable "enable_postgres" {
+  description = "Enable Aurora PostgreSQL Serverless v2 (Data API) as an additional backing service"
+  type        = bool
+  default     = false
+}
+
+variable "postgres_engine_version" {
+  description = "Aurora PostgreSQL engine version"
+  type        = string
+  default     = "16.4"
+}
+
+variable "postgres_database_name" {
+  description = "Default database name for Aurora PostgreSQL"
+  type        = string
+  default     = "app"
+}
+
+variable "postgres_master_username" {
+  description = "Master username for Aurora PostgreSQL"
+  type        = string
+  default     = "appadmin"
+}
+
+variable "postgres_min_acu" {
+  description = "Minimum Aurora Serverless v2 capacity units"
+  type        = number
+  default     = 0.5
+}
+
+variable "postgres_max_acu" {
+  description = "Maximum Aurora Serverless v2 capacity units"
+  type        = number
+  default     = 2
+}
+
+variable "postgres_backup_retention_days" {
+  description = "Backup retention for Aurora PostgreSQL"
+  type        = number
+  default     = 7
+}
+
+variable "postgres_deletion_protection" {
+  description = "Enable deletion protection for Aurora PostgreSQL"
+  type        = bool
+  default     = false
+}
+
+variable "postgres_skip_final_snapshot" {
+  description = "Skip final snapshot when deleting Aurora PostgreSQL"
+  type        = bool
+  default     = true
 }

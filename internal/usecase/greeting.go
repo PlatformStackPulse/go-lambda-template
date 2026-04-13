@@ -10,7 +10,7 @@ import (
 )
 
 type GreetingConfigProvider interface {
-	GreetingPrefix(context.Context) (string, error)
+	StringValue(context.Context, string) (string, error)
 }
 
 type GreetingRecorder interface {
@@ -18,8 +18,7 @@ type GreetingRecorder interface {
 }
 
 type GreetingEnvironment interface {
-	GreetingPrefixOverride(context.Context) string
-	GreetingSourceLabel(context.Context) string
+	Lookup(context.Context, string) string
 }
 
 type Clock func() time.Time
@@ -45,6 +44,12 @@ type GreetingUseCase struct {
 	now            Clock
 }
 
+const (
+	sampleGreetingPrefixKey    = "sample.greeting.prefix"
+	sampleGreetingPrefixEnvKey = "SAMPLE_GREETING_PREFIX"
+	apiSourceLabelEnvKey       = "API_SOURCE_LABEL"
+)
+
 func NewGreetingUseCase(log *logger.Logger, configProvider GreetingConfigProvider, recorder GreetingRecorder, environment GreetingEnvironment) *GreetingUseCase {
 	return NewGreetingUseCaseWithClock(log, configProvider, recorder, environment, time.Now)
 }
@@ -66,10 +71,10 @@ func (uc *GreetingUseCase) Execute(ctx context.Context, input GreetingInput) (Gr
 
 	prefix := ""
 	if uc.environment != nil {
-		prefix = uc.environment.GreetingPrefixOverride(ctx)
+		prefix = uc.environment.Lookup(ctx, sampleGreetingPrefixEnvKey)
 	}
 	if prefix == "" {
-		loadedPrefix, err := uc.configProvider.GreetingPrefix(ctx)
+		loadedPrefix, err := uc.configProvider.StringValue(ctx, sampleGreetingPrefixKey)
 		if err != nil {
 			return GreetingOutput{}, apperrors.Wrap(apperrors.ErrIntegration, "failed to load greeting prefix", err)
 		}
@@ -86,7 +91,7 @@ func (uc *GreetingUseCase) Execute(ctx context.Context, input GreetingInput) (Gr
 		source = "api"
 	}
 	if uc.environment != nil {
-		if sourceLabel := uc.environment.GreetingSourceLabel(ctx); sourceLabel != "" {
+		if sourceLabel := uc.environment.Lookup(ctx, apiSourceLabelEnvKey); sourceLabel != "" {
 			source = sourceLabel
 		}
 	}
