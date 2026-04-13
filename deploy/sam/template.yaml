@@ -100,6 +100,20 @@ Resources:
               Ref: HttpApi
             Method: GET
             Path: /hello/{name}
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Method: GET
+            Path: /health
+        Ready:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HttpApi
+            Method: GET
+            Path: /ready
 
 Outputs:
   LocalApiUrl:

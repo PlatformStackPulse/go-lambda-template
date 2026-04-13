@@ -30,6 +30,7 @@ func NewGreetingRecorder(client DynamoDBAPI, tableName string) *GreetingRecorder
 }
 
 func (r *GreetingRecorder) Record(ctx context.Context, record domain.GreetingRecord) error {
+	// Marshal the domain record into a DynamoDB attribute map.
 	item, err := attributevalue.MarshalMap(record)
 	if err != nil {
 		return fmt.Errorf("marshal greeting record: %w", err)
@@ -47,6 +48,7 @@ func (r *GreetingRecorder) Record(ctx context.Context, record domain.GreetingRec
 }
 
 func (r *GreetingRecorder) GetByRequestID(ctx context.Context, requestID string) (domain.GreetingRecord, error) {
+	// Read a single record by the partition key used in the sample table schema.
 	output, err := r.client.GetItem(ctx, &awsdynamodb.GetItemInput{
 		TableName: aws.String(r.tableName),
 		Key: map[string]types.AttributeValue{
@@ -73,6 +75,7 @@ func (r *GreetingRecorder) List(ctx context.Context, limit int32) ([]domain.Gree
 		limit = 10
 	}
 
+	// Scan keeps the sample simple; production services should prefer Query with indexes.
 	output, err := r.client.Scan(ctx, &awsdynamodb.ScanInput{
 		TableName: aws.String(r.tableName),
 		Limit:     aws.Int32(limit),

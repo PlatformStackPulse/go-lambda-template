@@ -62,6 +62,7 @@ func TestWrap(t *testing.T) {
 }
 
 func TestIsCode(t *testing.T) {
+	// IsCode should walk wrapped error chains and match any AppError code.
 	tests := []struct {
 		name     string
 		err      error
@@ -109,7 +110,7 @@ func TestIsCode(t *testing.T) {
 }
 
 func TestErrorChain(t *testing.T) {
-	// Create nested errors
+	// Create nested errors and verify both helper and stdlib unwrapping behavior.
 	sqlErr := fmt.Errorf("sql: connection refused")
 	dbErr := apperrors.Wrap(apperrors.ErrIntegration, "database unavailable", sqlErr)
 	appErr := apperrors.Wrap(apperrors.ErrInternal, "failed to save user", dbErr)

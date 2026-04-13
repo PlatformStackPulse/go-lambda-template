@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetReturnsVersionInfo(t *testing.T) {
+	// Snapshot and restore package globals to avoid test-order coupling.
 	origVersion := version.Version
 	origCommit := version.Commit
 	origBuildTime := version.BuildTime
@@ -34,6 +35,7 @@ func TestGetReturnsVersionInfo(t *testing.T) {
 }
 
 func TestInfoStringContainsFields(t *testing.T) {
+	// String output should include all metadata fields for diagnostics.
 	info := version.Info{Version: "v1.0.0", Commit: "deadbeef", BuildTime: "today", GoVersion: "go1.22"}
 	out := info.String()
 

@@ -55,6 +55,7 @@ func NewGreetingRecorder(client ExecuteStatementAPI, resourceARN, secretARN, dat
 }
 
 func (r *GreetingRecorder) Record(ctx context.Context, record domain.GreetingRecord) error {
+	// Ensure the sample table exists so first-run deployments work without migrations.
 	if err := r.execute(ctx, createGreetingRecordsTableSQL, nil); err != nil {
 		return fmt.Errorf("ensure greeting_records table: %w", err)
 	}
@@ -75,6 +76,7 @@ func (r *GreetingRecorder) Record(ctx context.Context, record domain.GreetingRec
 }
 
 func (r *GreetingRecorder) GetByRequestID(ctx context.Context, requestID string) (domain.GreetingRecord, error) {
+	// Keep read paths resilient by ensuring schema before querying.
 	if err := r.execute(ctx, createGreetingRecordsTableSQL, nil); err != nil {
 		return domain.GreetingRecord{}, fmt.Errorf("ensure greeting_records table: %w", err)
 	}
@@ -126,6 +128,7 @@ func (r *GreetingRecorder) List(ctx context.Context, limit int) ([]domain.Greeti
 }
 
 func (r *GreetingRecorder) execute(ctx context.Context, sql string, params []rdsdatatypes.SqlParameter) error {
+	// Helper for statements where result rows are not needed.
 	_, err := r.executeStatement(ctx, sql, params)
 	return err
 }
@@ -164,6 +167,7 @@ func longParam(name string, value int64) rdsdatatypes.SqlParameter {
 }
 
 func greetingRecordFromFields(fields []rdsdatatypes.Field) (domain.GreetingRecord, error) {
+	// SELECT statements project five columns in fixed order.
 	if len(fields) < 5 {
 		return domain.GreetingRecord{}, fmt.Errorf("expected 5 columns, got %d", len(fields))
 	}

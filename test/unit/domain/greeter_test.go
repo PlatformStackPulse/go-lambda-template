@@ -9,6 +9,7 @@ import (
 )
 
 func TestNormalizeName(t *testing.T) {
+	// NormalizeName should trim whitespace and keep a stable fallback for blanks.
 	tests := []struct {
 		name     string
 		input    string
@@ -27,6 +28,7 @@ func TestNormalizeName(t *testing.T) {
 }
 
 func TestBuildGreeting(t *testing.T) {
+	// BuildGreeting applies both prefix fallback and name normalization.
 	assert.Equal(t, "Hello, Alice!", domain.BuildGreeting("Hello", "Alice"))
 	assert.Equal(t, "Hello, World!", domain.BuildGreeting("", ""))
 }

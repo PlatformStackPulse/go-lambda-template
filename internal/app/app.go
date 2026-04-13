@@ -27,27 +27,37 @@ type Application struct {
 }
 
 func New(ctx context.Context) (*Application, error) {
+	// Load runtime configuration from environment variables.
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
 
+	// Create a structured logger early so all downstream components can emit consistent logs.
 	log := logger.NewLogger(cfg.Debug)
 
+	// Build a shared AWS SDK configuration used by all AWS-backed adapters.
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.AWS.Region))
 	if err != nil {
 		return nil, err
 	}
 
+	// Read app-level configuration values from a centralized SSM JSON document.
 	ssmProvider := ssmadapter.NewParameterStore(
 		ssm.NewFromConfig(awsCfg),
 		cfg.SSM.AppConfigParameterName,
 	)
+
+	// DynamoDB is always enabled as the default persistence adapter.
 	recorder := dynamodbadapter.NewGreetingRecorder(
 		dynamodb.NewFromConfig(awsCfg),
 		cfg.DynamoDB.RequestsTableName,
 	)
+
+	// Fan out writes across all configured persistence backends.
 	recorders := []usecase.GreetingRecorder{recorder}
+
+	// Postgres is optional and only appended when explicitly enabled.
 	if cfg.Postgres.Enabled {
 		recorders = append(recorders, postgresadapter.NewGreetingRecorder(
 			rdsdata.NewFromConfig(awsCfg),
@@ -56,10 +66,15 @@ func New(ctx context.Context) (*Application, error) {
 			cfg.Postgres.DatabaseName,
 		))
 	}
+
+	// Runtime settings exposes environment-variable overrides to use cases.
 	environment := envadapter.NewRuntimeSettings()
+
+	// Compose the application use case and HTTP handler.
 	greetingUseCase := usecase.NewGreetingUseCase(log, ssmProvider, &fanoutGreetingRecorder{recorders: recorders}, environment)
 	apiHandler := handler.NewAPIHandler(log, greetingUseCase)
 
+	// Return the fully wired application container used by the Lambda entrypoint.
 	return &Application{
 		Config:  cfg,
 		Logger:  log,
@@ -72,6 +87,7 @@ type fanoutGreetingRecorder struct {
 }
 
 func (r *fanoutGreetingRecorder) Record(ctx context.Context, record domain.GreetingRecord) error {
+	// Execute recorders in order and fail fast on the first write error.
 	for _, recorder := range r.recorders {
 		if recorder == nil {
 			continue

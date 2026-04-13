@@ -45,9 +45,13 @@ type GreetingUseCase struct {
 }
 
 const (
+	// Keys sourced from SSM app-config and environment overrides.
 	sampleGreetingPrefixKey    = "sample.greeting.prefix"
 	sampleGreetingPrefixEnvKey = "SAMPLE_GREETING_PREFIX"
+
+	// Keys for response source normalization.
 	apiSourceLabelEnvKey       = "API_SOURCE_LABEL"
+	defaultGreetingSourceLabel = "api"
 )
 
 func NewGreetingUseCase(log *logger.Logger, configProvider GreetingConfigProvider, recorder GreetingRecorder, environment GreetingEnvironment) *GreetingUseCase {
@@ -69,54 +73,85 @@ func (uc *GreetingUseCase) Execute(ctx context.Context, input GreetingInput) (Gr
 		return GreetingOutput{}, apperrors.New(apperrors.ErrConfiguration, "use case dependencies are not configured")
 	}
 
-	prefix := ""
-	if uc.environment != nil {
-		prefix = uc.environment.Lookup(ctx, sampleGreetingPrefixEnvKey)
-	}
-	if prefix == "" {
-		loadedPrefix, err := uc.configProvider.StringValue(ctx, sampleGreetingPrefixKey)
-		if err != nil {
-			return GreetingOutput{}, apperrors.Wrap(apperrors.ErrIntegration, "failed to load greeting prefix", err)
-		}
-		prefix = loadedPrefix
+	prefix, err := uc.resolveGreetingPrefix(ctx)
+	if err != nil {
+		return GreetingOutput{}, err
 	}
 
-	requestID := input.RequestID
-	if requestID == "" {
-		requestID = "unknown"
-	}
-
-	source := input.Source
-	if source == "" {
-		source = "api"
-	}
-	if uc.environment != nil {
-		if sourceLabel := uc.environment.Lookup(ctx, apiSourceLabelEnvKey); sourceLabel != "" {
-			source = sourceLabel
-		}
-	}
+	requestID := normalizeRequestID(input.RequestID)
+	source := uc.resolveSourceLabel(ctx, input.Source)
 
 	timestamp := uc.now().UTC().Format(time.RFC3339)
 	name := domain.NormalizeName(input.Name)
 	message := domain.BuildGreeting(prefix, name)
-	record := domain.GreetingRecord{
-		RequestID: requestID,
-		Name:      name,
-		Message:   message,
-		CreatedAt: timestamp,
-		Source:    source,
-	}
+	record := newGreetingRecord(requestID, name, message, timestamp, source)
 
+	// Persist request metadata so teams can inspect sample traffic in backing stores.
 	if err := uc.recorder.Record(ctx, record); err != nil {
 		return GreetingOutput{}, apperrors.Wrap(apperrors.ErrIntegration, "failed to record greeting request", err)
 	}
 
 	uc.log.Info("greeting served", "request_id", requestID, "name", name, "source", source)
 
+	return newGreetingOutput(message, requestID, source, timestamp), nil
+}
+
+func (uc *GreetingUseCase) resolveGreetingPrefix(ctx context.Context) (string, error) {
+	// Environment overrides are checked first for fast local/test iteration.
+	if uc.environment != nil {
+		if prefix := uc.environment.Lookup(ctx, sampleGreetingPrefixEnvKey); prefix != "" {
+			return prefix, nil
+		}
+	}
+
+	// Default source of truth is the shared app-config document in SSM.
+	prefix, err := uc.configProvider.StringValue(ctx, sampleGreetingPrefixKey)
+	if err != nil {
+		return "", apperrors.Wrap(apperrors.ErrIntegration, "failed to load greeting prefix", err)
+	}
+
+	return prefix, nil
+}
+
+func (uc *GreetingUseCase) resolveSourceLabel(ctx context.Context, inputSource string) string {
+	source := inputSource
+	if source == "" {
+		source = defaultGreetingSourceLabel
+	}
+
+	// API source label can be normalized by environment to simplify observability.
+	if uc.environment != nil {
+		if sourceLabel := uc.environment.Lookup(ctx, apiSourceLabelEnvKey); sourceLabel != "" {
+			return sourceLabel
+		}
+	}
+
+	return source
+}
+
+func normalizeRequestID(inputRequestID string) string {
+	if inputRequestID == "" {
+		return "unknown"
+	}
+
+	return inputRequestID
+}
+
+func newGreetingRecord(requestID, name, message, timestamp, source string) domain.GreetingRecord {
+	return domain.GreetingRecord{
+		RequestID: requestID,
+		Name:      name,
+		Message:   message,
+		CreatedAt: timestamp,
+		Source:    source,
+	}
+}
+
+func newGreetingOutput(message, requestID, source, timestamp string) GreetingOutput {
 	return GreetingOutput{
 		Message:   message,
 		RequestID: requestID,
 		Source:    source,
 		Timestamp: timestamp,
-	}, nil
+	}
 }

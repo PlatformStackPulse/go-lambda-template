@@ -15,6 +15,7 @@ This repository uses one local development path and one infrastructure path.
 2. run `make test`
 3. run `make sam-start-api` or `make sam-invoke`
 4. deploy through `make terraform-apply` when ready
+5. smoke test `GET /health`, `GET /ready`, and your main API route
 
 ## Local Development Commands
 
@@ -24,6 +25,9 @@ make package
 make sam-build
 make sam-invoke
 make sam-start-api
+curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3000/ready
+curl http://127.0.0.1:3000/hello/Ada
 ```
 
 ## Deployment Commands
@@ -42,6 +46,10 @@ Default deployment path:
 Optional deployment path:
 
 - `make package && make terraform-apply-zip` uploads the zip artifact through S3-backed Terraform resources
+
+Route parity note:
+
+- when adding routes, keep handler logic, SAM events, and Terraform routes aligned to avoid local-vs-cloud drift
 
 ## Branch Protection
 

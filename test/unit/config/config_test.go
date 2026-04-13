@@ -11,6 +11,7 @@ import (
 )
 
 func TestLoadDefaults(t *testing.T) {
+	// Clear all supported variables to verify deterministic defaults.
 	_ = os.Unsetenv("DEBUG")
 	_ = os.Unsetenv("APP_NAME")
 	_ = os.Unsetenv("APP_ENV")
@@ -51,6 +52,7 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadFromEnv(t *testing.T) {
+	// Set every supported override to ensure env mapping is complete.
 	_ = os.Setenv("DEBUG", "true")
 	_ = os.Setenv("APP_NAME", "my-app")
 	_ = os.Setenv("APP_ENV", "prod")
@@ -126,6 +128,7 @@ func TestInvalidBoolEnvFallsBack(t *testing.T) {
 }
 
 func TestPostgresValidationRequiresArnsWhenEnabled(t *testing.T) {
+	// Postgres mode must require both cluster and secret ARN wiring.
 	_ = os.Setenv("POSTGRES_ENABLED", "true")
 	defer func() {
 		_ = os.Unsetenv("POSTGRES_ENABLED")

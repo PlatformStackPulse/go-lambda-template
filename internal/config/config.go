@@ -67,6 +67,7 @@ type PostgresConfig struct {
 // Load loads configuration from environment variables.
 // Returns an error if required configuration is missing or invalid.
 func Load() (*Config, error) {
+	// Build context first so defaults can be derived consistently from app and env.
 	appName := getEnv("APP_NAME", "go-lambda-template")
 	environment := getEnv("APP_ENV", "dev")
 	parameterPrefix := getEnv("SSM_PARAMETER_PREFIX", fmt.Sprintf("/%s/%s", appName, environment))
@@ -110,7 +111,7 @@ func Load() (*Config, error) {
 		},
 	}
 
-	// Validate required fields
+	// Validate required fields early to fail fast during cold start.
 	if cfg.App.Name == "" {
 		return nil, fmt.Errorf("APP_NAME cannot be empty")
 	}
@@ -141,6 +142,7 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// Ensure default config can always be serialized into the SSM document format.
 	if err := validateAppConfigJSON(cfg); err != nil {
 		return nil, err
 	}
@@ -158,6 +160,7 @@ func validateAppConfigJSON(cfg *Config) error {
 }
 
 func DefaultAppConfigDocument(cfg *Config) map[string]string {
+	// Keep sample keys in the same document format expected by the SSM adapter.
 	return map[string]string{
 		"api.base_path":                cfg.API.BasePath,
 		"dynamodb.requests_table_name": cfg.DynamoDB.RequestsTableName,

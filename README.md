@@ -15,6 +15,7 @@ This template is opinionated by default:
 - optional Aurora PostgreSQL Serverless v2 (Data API) backing service
 - SSM Parameter Store used for a JSON app-config document
 - Lambda environment variables exposed through a dedicated runtime adapter
+- built-in `/health` and `/ready` endpoints for liveness/readiness checks
 - CloudWatch logs configured with retention
 - Terraform as the default deployment path
 - Docker plus ECR for the default Lambda package
@@ -59,6 +60,7 @@ internal/app/app.go                # Dependency wiring
 internal/handler/api.go            # API Gateway adapter
 internal/usecase/greeting.go       # Business orchestration
 internal/domain/greeting.go        # Pure domain logic
+pkg/health/status.go               # Liveness/readiness response model
 internal/adapter/dynamodb/         # DynamoDB integration
 internal/adapter/postgres/         # Aurora PostgreSQL Data API integration
 internal/adapter/ssm/              # SSM integration
@@ -120,6 +122,8 @@ Then call the sample endpoint:
 
 ```bash
 curl http://127.0.0.1:3000/hello/Ada
+curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3000/ready
 ```
 
 ### 6. Optional zip deployment path
@@ -158,6 +162,11 @@ The sample flow is:
   "timestamp": "2026-04-12T12:00:00Z"
 }
 ```
+
+Health routes return lightweight status payloads:
+
+- `GET /health` for liveness
+- `GET /ready` for readiness
 
 ## Example Customization
 
@@ -237,6 +246,7 @@ Terraform provisions these resources by default:
 - ECR repository for the Lambda container image
 - Lambda function deployed from ECR by default
 - API Gateway HTTP API with a configurable base path, defaulting to `GET /hello` and `GET /hello/{name}`
+- API Gateway routes for `GET /health` and `GET /ready`
 - DynamoDB table for request records
 - SSM parameter for the JSON app-config document
 - CloudWatch log groups for Lambda and API Gateway access logs

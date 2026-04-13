@@ -51,6 +51,7 @@ func (s stubEnvironment) Lookup(_ context.Context, key string) string {
 }
 
 func TestGreetingUseCaseExecute(t *testing.T) {
+	// Main flow should resolve prefix, persist a record, and return a response DTO.
 	log := logger.NewLogger(false)
 	recorder := &stubRecorder{}
 	now := func() time.Time {
@@ -74,6 +75,7 @@ func TestGreetingUseCaseExecute(t *testing.T) {
 }
 
 func TestGreetingUseCaseFallsBackToWorld(t *testing.T) {
+	// Empty name should use domain fallback behavior.
 	log := logger.NewLogger(false)
 	recorder := &stubRecorder{}
 	uc := usecase.NewGreetingUseCase(log, stubConfigProvider{prefix: "Welcome"}, recorder, stubEnvironment{})
@@ -81,6 +83,8 @@ func TestGreetingUseCaseFallsBackToWorld(t *testing.T) {
 	result, err := uc.Execute(context.Background(), usecase.GreetingInput{})
 	require.NoError(t, err)
 	assert.Equal(t, "Welcome, World!", result.Message)
+	assert.Equal(t, "unknown", result.RequestID)
+	assert.Equal(t, "api", result.Source)
 }
 
 func TestGreetingUseCaseReturnsIntegrationErrorOnConfigFailure(t *testing.T) {
@@ -102,6 +106,7 @@ func TestGreetingUseCaseReturnsIntegrationErrorOnRecorderFailure(t *testing.T) {
 }
 
 func TestGreetingUseCaseUsesEnvironmentOverride(t *testing.T) {
+	// Environment overrides should take precedence over loaded configuration.
 	log := logger.NewLogger(false)
 	recorder := &stubRecorder{}
 	uc := usecase.NewGreetingUseCase(log, stubConfigProvider{prefix: "Ignored"}, recorder, stubEnvironment{prefixOverride: "Howdy", sourceLabel: "env-source"})

@@ -27,6 +27,7 @@ func (s *stubExecutor) Execute(_ context.Context, input usecase.GreetingInput) (
 }
 
 func TestAPIHandlerSuccess(t *testing.T) {
+	// Successful execution should map to HTTP 200 with JSON payload.
 	executor := &stubExecutor{output: usecase.GreetingOutput{Message: "Hello, Sam!", RequestID: "req-1", Source: "$default", Timestamp: "2026-04-12T10:00:00Z"}}
 	h := handler.NewAPIHandler(logger.NewLogger(false), executor)
 
@@ -47,6 +48,7 @@ func TestAPIHandlerSuccess(t *testing.T) {
 }
 
 func TestAPIHandlerReturnsClientMessageForKnownErrors(t *testing.T) {
+	// Known business errors should expose user-safe messages.
 	executor := &stubExecutor{err: apperrors.New(apperrors.ErrInvalidInput, "name is invalid")}
 	h := handler.NewAPIHandler(logger.NewLogger(false), executor)
 
@@ -57,6 +59,7 @@ func TestAPIHandlerReturnsClientMessageForKnownErrors(t *testing.T) {
 }
 
 func TestAPIHandlerReturnsGenericMessageForInternalErrors(t *testing.T) {
+	// Internal/integration errors should hide internals behind a generic response.
 	executor := &stubExecutor{err: apperrors.New(apperrors.ErrIntegration, "ssm unavailable")}
 	h := handler.NewAPIHandler(logger.NewLogger(false), executor)
 
@@ -64,4 +67,36 @@ func TestAPIHandlerReturnsGenericMessageForInternalErrors(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 500, response.StatusCode)
 	assert.Contains(t, response.Body, "internal server error")
+}
+
+func TestAPIHandlerHealthRoute(t *testing.T) {
+	executor := &stubExecutor{}
+	h := handler.NewAPIHandler(logger.NewLogger(false), executor)
+
+	response, err := h.Handle(context.Background(), events.APIGatewayV2HTTPRequest{
+		RawPath: "/health",
+		RequestContext: events.APIGatewayV2HTTPRequestContext{
+			RequestID: "req-health",
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 200, response.StatusCode)
+	assert.Contains(t, response.Body, "\"check\":\"liveness\"")
+	assert.Equal(t, "", executor.input.Name)
+}
+
+func TestAPIHandlerReadyRoute(t *testing.T) {
+	executor := &stubExecutor{}
+	h := handler.NewAPIHandler(logger.NewLogger(false), executor)
+
+	response, err := h.Handle(context.Background(), events.APIGatewayV2HTTPRequest{
+		RawPath: "/ready",
+		RequestContext: events.APIGatewayV2HTTPRequestContext{
+			RequestID: "req-ready",
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 200, response.StatusCode)
+	assert.Contains(t, response.Body, "\"check\":\"readiness\"")
+	assert.Equal(t, "", executor.input.Name)
 }

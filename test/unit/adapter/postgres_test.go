@@ -35,6 +35,7 @@ func (s *stubExecuteStatementClient) ExecuteStatement(_ context.Context, input *
 }
 
 func TestPostgresGreetingRecorderRecord(t *testing.T) {
+	// Record should create table if needed and then write one row.
 	client := &stubExecuteStatementClient{}
 	recorder := postgresadapter.NewGreetingRecorder(client, "cluster-arn", "secret-arn", "app")
 
@@ -72,6 +73,7 @@ func TestPostgresGreetingRecorderReturnsInsertError(t *testing.T) {
 }
 
 func TestPostgresGreetingRecorderGetByRequestID(t *testing.T) {
+	// Read-by-id should decode a single Data API row into the domain model.
 	client := &stubExecuteStatementClient{outputs: []*rdsdata.ExecuteStatementOutput{
 		{},
 		{
@@ -105,6 +107,7 @@ func TestPostgresGreetingRecorderGetByRequestIDReturnsNotFound(t *testing.T) {
 }
 
 func TestPostgresGreetingRecorderList(t *testing.T) {
+	// List should preserve descending order returned by SQL.
 	client := &stubExecuteStatementClient{outputs: []*rdsdata.ExecuteStatementOutput{
 		{},
 		{

@@ -11,6 +11,7 @@ import (
 )
 
 func TestRuntimeSettingsReadsEnvironmentVariables(t *testing.T) {
+	// Runtime settings should expose raw env overrides by key.
 	_ = os.Setenv("SAMPLE_GREETING_PREFIX", "Howdy")
 	_ = os.Setenv("API_SOURCE_LABEL", "lambda-env")
 	defer func() {
@@ -24,6 +25,7 @@ func TestRuntimeSettingsReadsEnvironmentVariables(t *testing.T) {
 }
 
 func TestRuntimeSettingsTrimsAndDefaults(t *testing.T) {
+	// Whitespace-only values are treated as empty after trimming.
 	_ = os.Setenv("SAMPLE_GREETING_PREFIX", " ")
 	_ = os.Setenv("API_SOURCE_LABEL", "  api-source ")
 	defer func() {

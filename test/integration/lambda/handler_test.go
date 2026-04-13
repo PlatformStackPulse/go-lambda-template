@@ -28,6 +28,7 @@ func (integrationExecutor) Execute(_ context.Context, input usecase.GreetingInpu
 }
 
 func TestAPIHandlerWithFixture(t *testing.T) {
+	// Exercise the handler with a realistic API Gateway payload fixture.
 	bytes, err := os.ReadFile(filepath.Join("..", "..", "fixtures", "events", "apigw-request.json"))
 	require.NoError(t, err)
 

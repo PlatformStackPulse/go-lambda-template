@@ -6,6 +6,7 @@ This template is built for teams that want to start with a working Go Lambda API
 
 - Lambda runtime entrypoint
 - API Gateway HTTP API trigger
+- built-in health routes (`/health` and `/ready`)
 - DynamoDB and SSM app-config adapters ready for extension
 - environment variable adapter for runtime overrides
 - optional Aurora PostgreSQL Serverless v2 (Data API) infrastructure
@@ -27,6 +28,7 @@ After creating a repository from this template, make these changes first:
 6. Update the API contract in `internal/handler/api.go` if your route or payload changes.
 7. Replace the event fixture in `test/fixtures/events/apigw-request.json`.
 8. If you need relational data, set `enable_postgres = true` in `deploy/terraform/terraform.dev.tfvars` and use the generated Data API environment variables.
+9. Keep `/health` and `/ready` routes available so basic uptime checks continue to work after customization.
 
 ## Extension Points
 
@@ -45,6 +47,12 @@ After creating a repository from this template, make these changes first:
 - call adapters
 - apply domain rules
 - build the response model
+
+Readability guidance for use cases:
+
+- keep `Execute` focused on orchestration steps
+- extract config/source resolution into private helpers when branching grows
+- keep data-shaping in small constructor helpers for output and records
 
 ### Domain layer
 
@@ -76,6 +84,11 @@ Update:
 - the handler request parsing
 - the fixture event
 - the integration test assertions
+
+If you add or remove routes, update both:
+
+- `deploy/sam/template.yaml`
+- `deploy/terraform/main.tf`
 
 ### If your persistence model changes
 

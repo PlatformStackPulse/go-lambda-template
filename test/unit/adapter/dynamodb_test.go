@@ -50,6 +50,7 @@ func (s *stubPutItemClient) Scan(_ context.Context, input *dynamodb.ScanInput, _
 }
 
 func TestGreetingRecorderRecord(t *testing.T) {
+	// Verify that writes target the configured table and include the partition key.
 	client := &stubPutItemClient{}
 	recorder := dynamodbadapter.NewGreetingRecorder(client, "requests")
 
@@ -69,6 +70,7 @@ func TestGreetingRecorderReturnsWrappedError(t *testing.T) {
 }
 
 func TestGreetingRecorderGetByRequestID(t *testing.T) {
+	// Confirm read path unmarshals a stored DynamoDB item into the domain shape.
 	item, err := attributevalue.MarshalMap(domain.GreetingRecord{
 		RequestID: "req-1",
 		Name:      "Dev",
@@ -97,6 +99,7 @@ func TestGreetingRecorderGetByRequestIDReturnsNotFound(t *testing.T) {
 }
 
 func TestGreetingRecorderList(t *testing.T) {
+	// List should return records sorted by newest timestamp first.
 	first, err := attributevalue.MarshalMap(domain.GreetingRecord{
 		RequestID: "req-1",
 		Name:      "Ada",
